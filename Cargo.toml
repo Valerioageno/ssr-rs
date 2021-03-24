@@ -7,3 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+
+[dev-dependencies]
+actix-web = "3"
+futures = "0.3.13"
+
+[lib]
+name = "react_ssr"
+path = "src/lib.rs"
+
+[[example]]
+name = "actix"
+path = "examples/actix.rs"
