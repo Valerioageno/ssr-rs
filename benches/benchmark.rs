@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ssr_rs::Ssr;
 
