@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-and-test:
     docker: 
-      - image: circleci/rust
+      - image: circleci/rust:1.51.0-node
     environment: 
       RUSTFLAGS: '-D warnings'
     steps: 
@@ -13,6 +13,9 @@ jobs:
       - run:
           name: Calculate dependencies
           command: cargo generate-lockfile
+      - run:
+          name: Generate ssr production build
+          command: cd client && yarn install --yes && yarn build:ssr 
       - restore-cache:
           keys:
           - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}

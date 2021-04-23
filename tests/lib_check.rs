@@ -1,6 +1,7 @@
 use ssr_rs::Ssr;
 
 #[test]
+#[cfg_attr(tarpaulin, ignore)]
 fn render_start_with_doctype() {
     assert!(
         Ssr::render_to_string("./client/dist_ssr/ssr.js", "SSR", "Index")
