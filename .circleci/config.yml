@@ -1,0 +1,119 @@
+version: 2
+jobs:
+  build-and-test:
+    docker: 
+      - image: circleci/rust
+    environment: 
+      RUSTFLAGS: '-D warnings'
+    steps: 
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Calculate dependencies
+          command: cargo generate-lockfile
+      - restore-cache:
+          keys:
+          - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run: 
+          name: Build all targets
+          command: cargo build
+      - save-cache:
+          paths:
+          - /usr/local/cargo/registry
+          - target/debug/.fingerprint
+          - target/debug/build
+          - target/debug/deps
+          key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
+          name: Run all tests
+          command: cargo test
+
+  security:
+    docker:
+      - image: circleci/rust
+    steps:
+      - checkout
+      - run: 
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Cache permission
+          command: sudo chown -R $(whoami):$(id -ng) /usr/local/cargo
+      - restore_cache:
+          keys:
+            - v1-cargo-audit-{{ arch }}
+      - run:
+          name: Install dependency auditing tool
+          command: cargo install cargo-audit
+      - save_cache:
+          paths:
+          - usr/local/cargo
+          key: v1-cargo-audit-{{ arch }}
+      - run:
+          name: Check for known security issues in dependencies
+          command: cargo audit
+  
+  format: 
+    docker: 
+      - image: circleci/rust
+    steps: 
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Install formatter
+          command: rustup component add rustfmt
+      - run:
+          name: Check formatting
+          command: cargo fmt --all -- --check
+
+  lint: 
+    docker: 
+      - image: circleci/rust
+    steps: 
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Install clippy
+          command: rustup component add clippy
+      - run:
+          name: Linting
+          command: cargo clippy -- -D warnings
+  
+  coverage:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Coverage with docker
+          command: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
+
+workflows:
+  version: 2
+  build-test:
+    jobs:
+      - build-and-test:
+          filters:
+            tags:
+              only: /.*/
+      - security:
+          filters:
+            tags:
+              only: /.*/
+      - format:
+          filters:
+            tags:
+              only: /.*/
+      - lint:
+          filters:
+            tags:
+              only: /.*/
+      - coverage:
+          filters:
+            tags:
+              only: /.*/

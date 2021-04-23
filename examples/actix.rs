@@ -1,23 +1,30 @@
-use actix_web::{web, get, http::StatusCode, App, HttpServer, HttpResponse, Error};
+use actix_web::{get, http::StatusCode, web, App, Error, HttpResponse, HttpServer};
 use futures::{future::ok, stream::once};
+
+use actix_files as fs;
+
+use ssr_rs::Ssr;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-   
     HttpServer::new(|| {
         App::new()
-        .service(index)
+            .service(fs::Files::new("/styles", "client/dist_ssr/styles/").show_files_listing())
+            .service(fs::Files::new("/images", "client/dist_ssr/images/").show_files_listing())
+            .service(index)
     })
     .bind("127.0.0.1:8080")?
     .run()
     .await
 }
 
-
 #[get("/")]
 async fn index() -> HttpResponse {
-
-    let body = once(ok::<_, Error>(web::Bytes::from(react_ssr::render_to_string())));
+    let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
+        "./client/dist_ssr/ssr.js",
+        "SSR",
+        "Index",
+    ))));
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")

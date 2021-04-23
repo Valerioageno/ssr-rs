@@ -1,22 +1,39 @@
 [package]
-name = "react_ssr"
+name = "ssr_rs"
 version = "0.1.0"
 authors = ["Valerio <valerioageno@yahoo.it>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-rusty_v8 = "0.21.0"
-
-[dev-dependencies]
-actix-web = "3"
-futures = "0.3.13"
+exclude = [
+    ".circleci/", 
+    "./client/", 
+    "./tests/", 
+    "./benches/", 
+    "./examples/"
+    ]
 
 [lib]
-name = "react_ssr"
+name = "ssr_rs"
 path = "src/lib.rs"
+
+[dependencies]
+lazy_static = "1.4.0"
+rusty_v8 = "0.22.1"
+
+[dev-dependencies]
+actix-files = "0.5.0"
+actix-web = "3"
+futures = "0.3.13"
+# Benchmark Dependency
+criterion = "0.3.4"
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [[example]]
 name = "actix"
 path = "examples/actix.rs"
+
+[[example]]
+name = "run"
+path = "examples/run.rs"

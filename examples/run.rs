@@ -1,5 +1,9 @@
 //This example exist just for develop purposes
+use ssr_rs::Ssr;
 
 fn main() {
-    react_ssr::render_to_string();
+    println!(
+        "{}",
+        Ssr::render_to_string("./client/dist_ssr/ssr.js", "SSR", "Index")
+    )
 }

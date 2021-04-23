@@ -1,2 +1,6 @@
 /target
 Cargo.lock
+.idea
+
+client/dist_ssr
+process.yml
