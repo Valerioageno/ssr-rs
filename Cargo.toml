@@ -3,6 +3,13 @@ name = "ssr_rs"
 version = "0.1.0"
 authors = ["Valerio <valerioageno@yahoo.it>"]
 edition = "2018"
+description = "Enable server side rendering on servers written in rust"
+readme = "./README.md"
+homepage = "https://github.com/Valerioageno/ssr-rs"
+repository = "https://github.com/Valerioageno/ssr-rs"
+keywords = ["web", "ssr", "react", "actix", "rocket", "warp", "server", "server-side-rendering"]
+categories = ["web-programming"]
+license-file = "./LICENSE_MIT"
 exclude = [
     ".circleci/", 
     "./client/", 
@@ -23,6 +30,7 @@ rusty_v8 = "0.22.1"
 actix-files = "0.5.0"
 actix-web = "3"
 futures = "0.3.13"
+serde_json = "1.0"
 # Benchmark Dependency
 criterion = "0.3.4"
 
@@ -33,6 +41,10 @@ harness = false
 [[example]]
 name = "actix"
 path = "examples/actix.rs"
+
+[[example]]
+name = "actix-with-props"
+path = "examples/actix_with_initial_props.rs"
 
 [[example]]
 name = "run"

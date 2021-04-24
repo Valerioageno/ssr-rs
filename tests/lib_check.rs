@@ -4,7 +4,7 @@ use ssr_rs::Ssr;
 #[cfg_attr(tarpaulin, ignore)]
 fn render_start_with_doctype() {
     assert!(
-        Ssr::render_to_string("./client/dist_ssr/ssr.js", "SSR", "Index")
+        Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "Index", None)
             .starts_with("<!doctype html>")
     )
 }
@@ -12,17 +12,17 @@ fn render_start_with_doctype() {
 #[test]
 #[should_panic(expected = "file not found")]
 fn if_the_file_not_exist() {
-    Ssr::render_to_string("./wrong/file/path/bundle.js", "SSR", "Index");
+    Ssr::render_to_string("./wrong/file/path/bundle.js", "SSR", "Index", None);
 }
 
 #[test]
 #[should_panic]
 fn incorrect_ssr_function_entry_point() {
-    Ssr::render_to_string("./client/dist_ssr/ssr.js", "Index", "SSR");
+    Ssr::render_to_string("./client/dist/ssr/index.js", "Index", "SSR", None);
 }
 
 #[test]
 #[should_panic]
 fn incorrect_function_call() {
-    Ssr::render_to_string("./client/dist_ssr/ssr.js", "SSR", "SSR");
+    Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "SSR", None);
 }

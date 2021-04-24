@@ -2,20 +2,18 @@ const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const {CleanWebpackPlugin} = require('clean-webpack-plugin');
 
-const buildDirectory = "dist_ssr/"
+const buildDirectory = "dist/ssr/"
 
 module.exports = {
   mode: 'production',
   target: 'web',
-  entry: {
-    ssr: path.resolve(__dirname, './src/ssrEntry.tsx'),
-  },
+  entry: path.resolve(__dirname, './src/ssrEntry.tsx'),
   output: {
     path: path.resolve(__dirname, buildDirectory),
     // render_to_string entry point name!!
     library: 'SSR',
     libraryTarget: 'var',
-    filename: '[name].js'
+    filename: 'index.js'
   },
   resolve: {
     extensions: [".js", ".jsx", ".json", ".ts", ".tsx"]
@@ -37,7 +35,7 @@ module.exports = {
           {
             loader: 'file-loader',
             options: {
-              name: 'images/[hash]-[name].[ext]',
+              name: './images/[hash]-[name].[ext]',
             },
           },
         ],
@@ -50,11 +48,10 @@ module.exports = {
   },
   plugins: [
     new MiniCssExtractPlugin({
-      // Options similar to the same options in webpackOptions.output
-      // both options are optional
-      filename: 'styles/[name].css',
-      chunkFilename: '[id].css',
+      filename: './styles/ssr.css',
     }),
-    new CleanWebpackPlugin({buildDirectory}),
+    new CleanWebpackPlugin({
+      cleanOnceBeforeBuildPatterns: [path.join(__dirname, buildDirectory)],
+    }),
   ],
 };

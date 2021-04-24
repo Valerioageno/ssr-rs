@@ -1,10 +1,12 @@
 import React from 'react';
-import { renderToString } from 'react-dom/server';
+import { renderToString, renderToStaticMarkup } from 'react-dom/server';
 import App from './App';
 import './index.css';
 
-export const Index = () => {
-  const app = renderToString(<App />);
+export const Index = (params: string | undefined) => {
+  
+  const props = params ? JSON.parse(params) : {};
+  const app = renderToString(<App {...props} />);
 
   return (
  `<!doctype html>
@@ -12,8 +14,10 @@ export const Index = () => {
     <head>
       <title>React SSR</title>
       <link rel="stylesheet" href="./styles/ssr.css">
+      <script async src="./scripts/bundle.js"></script>
     </head>
     <body>
+      ${renderToStaticMarkup(<script dangerouslySetInnerHTML={{__html: `window.__INITIAL_PROPS__ =${params}`}}/>)}
       <div id="root">${app}</div>
     </body>
   </html>`

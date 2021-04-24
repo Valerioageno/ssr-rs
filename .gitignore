@@ -2,5 +2,5 @@
 Cargo.lock
 .idea
 
-client/dist_ssr
+client/dist
 process.yml

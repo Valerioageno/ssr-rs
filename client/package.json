@@ -20,7 +20,9 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:ssr": "npx webpack --config ./webpack.config.js --progress",
+    "build:all": "webpack --config ./webpack.client.build.js --progress && webpack --config ./webpack.ssr.js --progress",
+    "build:client": "webpack --config ./webpack.client.build.js --progress",
+    "build:ssr": "webpack --config ./webpack.ssr.js --progress",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

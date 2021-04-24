@@ -4,11 +4,33 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+const mockProps = {
+  params: [
+    "first param",
+    "second param",
+    "third param"
+  ]
+}
+
+const props = (() => {
+  const stateHolder = (window as { __INITIAL_PROPS__?: string });
+  const ssrState = stateHolder.__INITIAL_PROPS__;
+
+  if (ssrState) {
+    //delete stateHolder.__INITIAL_PROPS__;
+    return JSON.parse(ssrState);
+  }
+  return mockProps;
+})();
+
+
+
 if(process.env.NODE_ENV !== 'production') {
 
   render(
+    
     <React.StrictMode>
-      <App />
+      <App {...props} />
     </React.StrictMode>,
     document.getElementById('root')
   );
@@ -19,8 +41,7 @@ if(process.env.NODE_ENV !== 'production') {
   reportWebVitals();
 
 }else{
-
-  hydrate(<App />,document.getElementById("root"))
+  hydrate(<App {...props} />,document.getElementById("root"))
   
 }
 

@@ -11,18 +11,20 @@ From the initial scaffolding project there are the following diffrences:
 
     "scripts": {
         //[...]
-        "build:ssr": "npx webpack --config ./webpack.config.js --progress",
+          "build:all": "webpack --config ./webpack.client.build.js --progress && webpack --config ./webpack.ssr.js --progress",
+          "build:client": "webpack --config ./webpack.client.build.js --progress",
+          "build:ssr": "webpack --config ./webpack.ssr.js --progress",
         //[...]
     }
 
 //[...]
 
   "devDependencies": {
-        "clean-webpack-plugin": "^4.0.0-alpha.0",
-        "css-loader": "^5.2.2",
-        "file-loader": "^6.2.0",
-        "mini-css-extract-plugin": "^1.5.0",
-        "webpack-cli": "^4.6.0"
+          "clean-webpack-plugin": "^4.0.0-alpha.0",
+          "css-loader": "^5.2.2",
+          "file-loader": "^6.2.0",
+          "mini-css-extract-plugin": "^1.5.0",
+          "webpack-cli": "^4.6.0"
   }
 
 //[...]
@@ -32,12 +34,14 @@ From the initial scaffolding project there are the following diffrences:
 // src/ssrEntry.tsx
 
 import React from 'react';
-import { renderToString } from 'react-dom/server';
+import { renderToString, renderToStaticMarkup } from 'react-dom/server';
 import App from './App';
 import './index.css';
 
-export const Index = () => {
-  const app = renderToString(<App />);
+export const Index = (params: string | undefined) => {
+  
+  const props = params ? JSON.parse(params) : {};
+  const app = renderToString(<App {...props} />);
 
   return (
  `<!doctype html>
@@ -45,8 +49,10 @@ export const Index = () => {
     <head>
       <title>React SSR</title>
       <link rel="stylesheet" href="./styles/ssr.css">
+      <script async src="./scripts/bundle.js"></script>
     </head>
     <body>
+      ${renderToStaticMarkup(<script dangerouslySetInnerHTML={{__html: `window.__INITIAL_PROPS__ =${params}`}}/>)}
       <div id="root">${app}</div>
     </body>
   </html>`

@@ -24,9 +24,42 @@
   color: white;
 }
 
+.App-header button{
+  background-color: #61dafb;
+  border: none;
+  outline: none;
+  font-size: calc(10px + 2vmin);
+  margin-top: 20px;
+  cursor: pointer;
+  padding: 5px 60px;
+}
+
 .App-link {
   color: #61dafb;
 }
+
+.paramsContainer{
+  position: fixed;
+  background-color: #61dafb;;
+  width: 100%;
+  height: 100px;
+  bottom: 0px;
+}
+
+.paramsContainer ul{
+  position: absolute;
+  display: flex;
+  list-style-type: none;
+  left: 50%;
+  top: 5px;
+  transform: translateX(-50%);
+  padding: 0;
+}
+
+.paramsContainer ul li{
+  padding-left: 15px; padding-right: 15px;
+}
+
 
 @keyframes App-logo-spin {
   from {

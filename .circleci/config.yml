@@ -15,7 +15,7 @@ jobs:
           command: cargo generate-lockfile
       - run:
           name: Generate ssr production build
-          command: cd client && yarn install --yes && yarn build:ssr 
+          command: cd client && yarn install --yes && yarn build:all
       - restore-cache:
           keys:
           - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}

@@ -13,10 +13,16 @@ impl Ssr {
               v8::V8::initialize();
           };
         }
+
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
-    pub fn render_to_string(path: &str, entry_point: &str, function: &str) -> String {
+    pub fn render_to_string(
+        path: &str,
+        entry_point: &str,
+        function: &str,
+        params: Option<&str>,
+    ) -> String {
         Self::init_platform();
 
         {
@@ -70,10 +76,7 @@ impl Ssr {
                 }
             }
 
-            //Handle params here
-            let params = "";
-
-            let params: v8::Local<v8::Value> = match v8::String::new(scope, params) {
+            let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
                 Some(s) => s.into(),
                 None => v8::undefined(scope).into(),
             };

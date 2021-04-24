@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import logo from './logo.svg';
 import './App.css';
 
-function App() {
+interface Props {
+  params: string[]
+}
+
+function App(props: Props | undefined) {
+
+  const [count, setCount] = useState(0);
+
   return (
     <div className="App">
       <header className="App-header">
@@ -18,6 +25,19 @@ function App() {
         >
           Learn React
         </a>
+        <button onClick={() => setCount(count +1)}>{count}</button>
+        
+        {
+          props?.params ?
+
+          <div className="paramsContainer">
+            <ul>
+              { props?.params?.map((elem, i) => <li key={i}>{elem}</li>) }
+            </ul>
+          </div>
+          : null
+        }
+        
       </header>
     </div>
   );
