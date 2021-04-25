@@ -28,12 +28,20 @@ lazy_static = "1.4.0"
 rusty_v8 = "0.22.1"
 
 [dev-dependencies]
+serde_json = "1.0"
+
+#Actix depencendies
 actix-files = "0.5.0"
 actix-web = "3"
 futures = "0.3.13"
-serde_json = "1.0"
-# Benchmark Dependency
+
+#Warp dependencies
+tokio = { version = "1", features = ["full"] }
+warp = "0.3"
+
+# Benchmark dependencies
 criterion = "0.3.4"
+
 
 #Their needs to stay commented because test going to panic with the non-nightly toolchain set
 #rocket = "0.4.7"
@@ -51,6 +59,11 @@ path = "examples/actix.rs"
 name = "actix-with-props"
 path = "examples/actix_with_initial_props.rs"
 
+[[example]]
+name = "warp"
+path = "examples/warp.rs"
+
+
 # [[example]]
 # name = "rocket"
 # path = "examples/rocket.rs"
@@ -58,4 +71,6 @@ path = "examples/actix_with_initial_props.rs"
 [[example]]
 name = "run"
 path = "examples/run.rs"
+
+
 
