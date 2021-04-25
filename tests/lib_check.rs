@@ -10,7 +10,7 @@ fn render_start_with_doctype() {
 }
 
 #[test]
-#[should_panic(expected = "file not found")]
+#[should_panic(expected = "File not found")]
 fn if_the_file_not_exist() {
     Ssr::render_to_string("./wrong/file/path/bundle.js", "SSR", "Index", None);
 }

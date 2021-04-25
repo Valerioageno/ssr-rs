@@ -1,4 +1,7 @@
 //This example needs rust toolchain nightly version
+//Due this it going to panic when try to test it with a non-nightly toolchain set
+//This example works correctly
+
 #![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use] extern crate rocket;
 use ssr_rs::Ssr;
