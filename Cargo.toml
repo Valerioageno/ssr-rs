@@ -31,8 +31,10 @@ actix-files = "0.5.0"
 actix-web = "3"
 futures = "0.3.13"
 serde_json = "1.0"
+rocket = "0.4.7"
 # Benchmark Dependency
 criterion = "0.3.4"
+rocket_contrib = "0.4.7"
 
 [[bench]]
 name = "benchmark"
@@ -47,5 +49,10 @@ name = "actix-with-props"
 path = "examples/actix_with_initial_props.rs"
 
 [[example]]
+name = "rocket"
+path = "examples/rocket.rs"
+
+[[example]]
 name = "run"
 path = "examples/run.rs"
+
