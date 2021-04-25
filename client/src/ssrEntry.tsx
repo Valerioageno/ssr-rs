@@ -3,6 +3,8 @@ import { renderToString, renderToStaticMarkup } from 'react-dom/server';
 import App from './App';
 import './index.css';
 
+
+//Initial function to call from the server
 export const Index = (params: string | undefined) => {
   
   const props = params ? JSON.parse(params) : {};

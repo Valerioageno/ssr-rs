@@ -17,6 +17,14 @@ impl Ssr {
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
+    ///Evaluate the javascript source code passed and run the render function.
+    /// Any initial params (if needed) must be passed as JSON using <a href="https://crates.io/crates/serde_json" target="_blank">serde_json</a>.
+    ///
+    /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> is a useful example of how to use initial params with the actix framework.
+    ///
+    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
+    ///
+    /// "function" is the js function who render the entire application. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from a boilerplate react app scaffolded using `nxp create-react-app` with the typescript `--template` flag.
     pub fn render_to_string(
         path: &str,
         entry_point: &str,
