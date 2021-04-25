@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ssr_rs::Ssr;
+use serde_json;
 
 pub fn bench_render_to_string_no_params(c: &mut Criterion) {
     c.bench_function("render_to_string_no_params", |b| {
@@ -9,13 +10,25 @@ pub fn bench_render_to_string_no_params(c: &mut Criterion) {
 }
 
 pub fn bench_render_to_string_with_params(c: &mut Criterion) {
+
+    let mock_props = r##"{
+        "params": [
+            "hello",
+            "ciao",
+            "こんにちは" 
+        ]
+    }"##;
+
+    let json = serde_json::to_string(&mock_props).unwrap();
+
+
     c.bench_function("render_to_string_with_params", |b| {
         b.iter(|| {
             Ssr::render_to_string(
                 "./client/dist/ssr/index.js",
                 "SSR",
                 "Index",
-                Some(&"string".to_string()),
+                Some(&json),
             )
         })
     });

@@ -42,7 +42,7 @@ impl Ssr {
             let code = v8::String::new(
                 scope,
                 &[
-                    &std::fs::read_to_string(path).expect("file not found"),
+                    &std::fs::read_to_string(path).expect("File not found."),
                     entry_point,
                 ]
                 .concat(),
