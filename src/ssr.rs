@@ -91,7 +91,9 @@ impl Ssr {
 
             let undef = v8::undefined(scope).into();
 
-            let result = fn_map[render_function].call(scope, undef, &[params]).unwrap();
+            let result = fn_map[render_function]
+                .call(scope, undef, &[params])
+                .unwrap();
             let result = result.to_string(scope).unwrap();
 
             result.to_rust_string_lossy(scope)

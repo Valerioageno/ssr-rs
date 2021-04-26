@@ -4,6 +4,8 @@
 //!
 //! The whole logic is stored inside the [render_to_string()](struct.Ssr.html) function.
 //!
+//!  # Example
+//!
 //! ```no_run
 //! use ssr_rs::Ssr;
 //!

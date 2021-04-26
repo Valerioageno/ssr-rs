@@ -39,6 +39,11 @@ futures = "0.3.13"
 tokio = { version = "1", features = ["full"] }
 warp = "0.3"
 
+#Tide dependencies
+tide = "0.16.0"
+async-std = { version = "1.6.0", features = ["attributes"] }
+serde = { version = "1.0", features = ["derive"] }
+
 # Benchmark dependencies
 criterion = "0.3.4"
 
@@ -62,6 +67,10 @@ path = "examples/actix_with_initial_props.rs"
 [[example]]
 name = "warp"
 path = "examples/warp.rs"
+
+[[example]]
+name = "tide"
+path = "examples/tide.rs"
 
 
 # [[example]]
