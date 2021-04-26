@@ -1,6 +1,6 @@
 # Create React App boilerplate
 
-This example is made using <a href="https://create-react-app.dev/" target="_blank">create-react-app</a> boilerplate with the typescipt `--template` flag.
+This example is made using <a href="https://create-react-app.dev/" target="_blank">create-react-app</a> boilerplate with the typescript `--template` flag.
 
 From the initial scaffolding project there are the following diffrences: 
 

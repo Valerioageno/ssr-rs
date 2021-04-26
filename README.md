@@ -2,9 +2,9 @@
 
 [![Valerioageno](https://circleci.com/gh/Valerioageno/ssr-rs.svg?style=svg)](https://github.com/Valerioageno/ssr-rs)
 
-The project aim to enable server side rendering on rust servers in the simplest and lightest way possible.
+The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
-All logic is stored inside the `render_to_string()` function.
+The all logic is stored inside the `render_to_string()` function.
 
 ```rust
 use ssr_rs::Ssr;
@@ -16,5 +16,5 @@ fn main() {
 }
 ```
 
-Are included examples with the most famous server framework and a default frontend react app made using `npx create-react-app` with the typescript `--template` flag.
+There are included examples with the most famous server frameworks and a default frontend react app made using `npx create-react-app` and the typescript `--template` flag.
 

@@ -1,8 +1,8 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/Valerioageno/ssr-rs/main/logo.png")]
 
-//! This crate aim to enable server side rendering on rust servers in the simplest and lightest way possible.
+//! This crate aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 //!
-//! All logic is stored inside the [render_to_string()](struct.Ssr.html) function.
+//! The whole logic is stored inside the [render_to_string()](struct.Ssr.html) function.
 //!
 //! ```no_run
 //! use ssr_rs::Ssr;

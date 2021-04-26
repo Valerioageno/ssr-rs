@@ -17,18 +17,18 @@ impl Ssr {
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
-    ///Evaluate the javascript source code passed and run the render function.
+    /// Evaluates the javascript source code passed and runs the render_function.
     /// Any initial params (if needed) must be passed as JSON using <a href="https://crates.io/crates/serde_json" target="_blank">serde_json</a>.
     ///
     /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> is a useful example of how to use initial params with the actix framework.
     ///
     /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
     ///
-    /// "function" is the js function who render the entire application. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from a boilerplate react app scaffolded using `nxp create-react-app` with the typescript `--template` flag.
+    /// "render_function" is the js function who renders the entire application. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from a boilerplate react app scaffolded using `nxp create-react-app` with the typescript `--template` flag.
     pub fn render_to_string(
         path: &str,
         entry_point: &str,
-        function: &str,
+        render_function: &str,
         params: Option<&str>,
     ) -> String {
         Self::init_platform();
@@ -91,7 +91,7 @@ impl Ssr {
 
             let undef = v8::undefined(scope).into();
 
-            let result = fn_map[function].call(scope, undef, &[params]).unwrap();
+            let result = fn_map[render_function].call(scope, undef, &[params]).unwrap();
             let result = result.to_string(scope).unwrap();
 
             result.to_rust_string_lossy(scope)
