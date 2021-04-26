@@ -26,3 +26,22 @@ fn incorrect_ssr_function_entry_point() {
 fn incorrect_function_call() {
     Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "SSR", None);
 }
+
+#[test]
+fn check_if_params_are_rendered() {
+    use serde_json;
+
+    let mock_props = r##"{
+        "params": [
+            "hello",
+            "ciao",
+            "こんにちは" 
+        ]
+    }"##;
+
+    let json = serde_json::to_string(&mock_props).unwrap();
+
+    let html = Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "Index", Some(&json));
+
+    assert!(html.contains(r#"<script>window.__INITIAL_PROPS__ ="{\n        \"params\": [\n            \"hello\",\n            \"ciao\",\n            \"こんにちは\" \n        ]\n    }"</script>"#));
+}
