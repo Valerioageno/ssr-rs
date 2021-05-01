@@ -12,7 +12,7 @@ categories = ["web-programming"]
 license-file = "./LICENSE_MIT"
 autoexamples = false
 include = [
-    "./src/*.rs",
+    "src/*.rs",
     "Cargo.toml",
 ]
 
@@ -51,6 +51,7 @@ criterion = "0.3.4"
 
 [[bench]]
 name = "benchmark"
+path = "benches/benchmark.rs"
 harness = false
 
 [[example]]
