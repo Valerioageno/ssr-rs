@@ -7,17 +7,14 @@ description = "Enable server side rendering on servers written in rust"
 readme = "./README.md"
 homepage = "https://github.com/Valerioageno/ssr-rs"
 repository = "https://github.com/Valerioageno/ssr-rs"
-keywords = ["web", "ssr", "react", "actix", "rocket", "warp", "server", "server-side-rendering"]
+keywords = ["web", "ssr", "react", "reactjs", "actix", "rocket", "warp", "server", "server-side-rendering"]
 categories = ["web-programming"]
 license-file = "./LICENSE_MIT"
 autoexamples = false
-exclude = [
-    ".circleci/", 
-    "./client/", 
-    "./tests/", 
-    "./benches/", 
-    "./examples/"
-    ]
+include = [
+    "./src/*.rs",
+    "Cargo.toml",
+]
 
 [lib]
 name = "ssr_rs"

@@ -4,15 +4,28 @@
 
 The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
-Actually it works with ReactJS. It isn't tested yet with other frontend frameworks.
-
 The all logic is stored inside the `render_to_string()` function.
+
+## Gettin started
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+ssr_rs = "0.2.0"
+```
+
+## Example
 
 ```rust
 use ssr_rs::Ssr;
+use std::fs::render_to_string;
 
 fn main() {
-   let html = Ssr::render_to_string("./path/to/build.js", "entryPoint", "renderFunction", None);
+
+    let source = render_to_string("./path/to/build.js").unwrap();
+
+    let html = Ssr::render_to_string(&source, "entryPoint", None);
     
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 }
