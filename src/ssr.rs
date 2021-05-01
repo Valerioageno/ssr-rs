@@ -17,20 +17,13 @@ impl Ssr {
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
-    /// Evaluates the javascript source code passed and runs the render_function.
+    /// Evaluates the javascript source code passed and runs the render functions.
     /// Any initial params (if needed) must be passed as JSON using <a href="https://crates.io/crates/serde_json" target="_blank">serde_json</a>.
     ///
-    /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> is a useful example of how to use initial params with the actix framework.
+    /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
     ///
     /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    ///
-    /// "render_function" is the js function who renders the entire application. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from a boilerplate react app scaffolded using `nxp create-react-app` with the typescript `--template` flag.
-    pub fn render_to_string(
-        path: &str,
-        entry_point: &str,
-        render_function: &str,
-        params: Option<&str>,
-    ) -> String {
+    pub fn render_to_string(source: &str, entry_point: &str, params: Option<&str>) -> String {
         Self::init_platform();
 
         {
@@ -47,18 +40,13 @@ impl Ssr {
             //Stack-allocated class which sets the execution context for all operations executed within a local scope.
             let scope = &mut v8::ContextScope::new(handle_scope, context);
 
-            let code = v8::String::new(
-                scope,
-                &[
-                    &std::fs::read_to_string(path).expect("File not found."),
-                    entry_point,
-                ]
-                .concat(),
-            )
-            .unwrap();
+            let code = v8::String::new(scope, &[source, entry_point].concat())
+                .expect("Strings are needed");
 
-            let script = v8::Script::compile(scope, code, None).unwrap();
-            let exports = script.run(scope).unwrap();
+            let script =
+                v8::Script::compile(scope, code, None).expect("There aren't runnable scripts");
+
+            let exports = script.run(scope).expect("Nothing to export");
 
             let exports = exports.to_object(scope).expect("There are no objects");
 
@@ -91,12 +79,17 @@ impl Ssr {
 
             let undef = v8::undefined(scope).into();
 
-            let result = fn_map[render_function]
-                .call(scope, undef, &[params])
-                .unwrap();
-            let result = result.to_string(scope).unwrap();
+            let mut rendered = String::new();
 
-            result.to_rust_string_lossy(scope)
+            for key in fn_map.keys() {
+                let result = fn_map[key].call(scope, undef, &[params]).unwrap();
+
+                let result = result.to_string(scope).unwrap();
+
+                rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
+            }
+
+            rendered
         }
     }
 }

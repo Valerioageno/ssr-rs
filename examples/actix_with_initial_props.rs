@@ -1,5 +1,6 @@
 use actix_web::{get, http::StatusCode, web, App, Error, HttpResponse, HttpServer};
 use futures::{future::ok, stream::once};
+use std::fs::read_to_string;
 
 use actix_files as fs;
 
@@ -23,6 +24,8 @@ async fn main() -> std::io::Result<()> {
 
 #[get("/")]
 async fn index() -> HttpResponse {
+    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+
     let mock_props = r##"{
         "params": [
             "hello",
@@ -34,9 +37,8 @@ async fn index() -> HttpResponse {
     let json = serde_json::to_string(&mock_props).unwrap();
 
     let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
-        "./client/dist/ssr/index.js",
+        &source,
         "SSR",
-        "Index",
         Some(&json),
     ))));
 

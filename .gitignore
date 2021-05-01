@@ -4,3 +4,4 @@ Cargo.lock
 
 client/dist
 process.yml
+tarpaulin*

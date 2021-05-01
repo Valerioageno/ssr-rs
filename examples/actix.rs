@@ -1,7 +1,7 @@
+use actix_files as fs;
 use actix_web::{get, http::StatusCode, web, App, Error, HttpResponse, HttpServer};
 use futures::{future::ok, stream::once};
-
-use actix_files as fs;
+use std::fs::read_to_string;
 
 use ssr_rs::Ssr;
 
@@ -21,11 +21,10 @@ async fn main() -> std::io::Result<()> {
 
 #[get("/")]
 async fn index() -> HttpResponse {
+    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+
     let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
-        "./client/dist/ssr/index.js",
-        "SSR",
-        "Index",
-        None,
+        &source, "SSR", None,
     ))));
 
     HttpResponse::build(StatusCode::OK)

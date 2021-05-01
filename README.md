@@ -4,6 +4,8 @@
 
 The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
+Actually it works with ReactJS. It isn't tested yet with other frontend frameworks.
+
 The all logic is stored inside the `render_to_string()` function.
 
 ```rust

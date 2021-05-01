@@ -4,13 +4,23 @@
 //!
 //! The whole logic is stored inside the [render_to_string()](struct.Ssr.html) function.
 //!
+//!  # Gettin started
+//! ```no_run
+//! //Cargo.toml
+//!
+//! ssr_rs = "0.2.0"
+//! ```
+//!
 //!  # Example
 //!
 //! ```no_run
 //! use ssr_rs::Ssr;
+//! use std::fs::read_to_string;
 //!
 //! fn main() {
-//!    let html = Ssr::render_to_string("./path/to/build.js", "entryPoint", "renderFunction", None);
+//!    let source = read_to_string("./path/to/build.js").unwrap();
+//!
+//!    let html = Ssr::render_to_string(&source, "entryPoint", None);
 //!    
 //!    assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }

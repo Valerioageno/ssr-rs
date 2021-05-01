@@ -1,6 +1,6 @@
-use tide::{Request, Response};
-
 use ssr_rs::Ssr;
+use std::fs::read_to_string;
+use tide::{Request, Response};
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
@@ -14,7 +14,9 @@ async fn main() -> tide::Result<()> {
 }
 
 async fn return_html(_req: Request<()>) -> tide::Result {
-    let html = Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "Index", None);
+    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+
+    let html = Ssr::render_to_string(&source, "SSR", None);
 
     let response = Response::builder(200)
         .body(html)

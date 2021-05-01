@@ -7,13 +7,15 @@
 use ssr_rs::Ssr;
 use rocket::response::content;
 use rocket_contrib::serve::StaticFiles;
+use std::fs::read_to_string;
 
 
 #[get("/")]
 fn index() -> content::Html<String> {
+    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
     content::Html(
-        Ssr::render_to_string("./client/dist/ssr/index.js", "SSR", "Index", None)
+        Ssr::render_to_string(&source, "SSR", None)
     )
 
 }

@@ -1,6 +1,6 @@
 [package]
 name = "ssr_rs"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Valerio <valerioageno@yahoo.it>"]
 edition = "2018"
 description = "Enable server side rendering on servers written in rust"

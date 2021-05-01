@@ -1,17 +1,14 @@
 #![deny(warnings)]
 use ssr_rs::Ssr;
+use std::fs::read_to_string;
 use warp::{http::Response, Filter};
 
 #[tokio::main]
 async fn main() {
-    let html = warp::path::end().map(|| {
-        Response::builder().body(Ssr::render_to_string(
-            "./client/dist/ssr/index.js",
-            "SSR",
-            "Index",
-            None,
-        ))
-    });
+    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+
+    let html = warp::path::end()
+        .map(move || Response::builder().body(Ssr::render_to_string(&source, "SSR", None)));
 
     let css = warp::path("styles").and(warp::fs::dir("./client/dist/ssr/styles/"));
     let scripts = warp::path("scripts").and(warp::fs::dir("./client/dist/client/"));
