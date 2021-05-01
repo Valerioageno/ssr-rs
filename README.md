@@ -12,18 +12,18 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ssr_rs = "0.2.0"
+ssr_rs = "0.2.1"
 ```
 
 ## Example
 
 ```rust
 use ssr_rs::Ssr;
-use std::fs::render_to_string;
+use std::fs::read_to_string;
 
 fn main() {
 
-    let source = render_to_string("./path/to/build.js").unwrap();
+    let source = read_to_string("./path/to/build.js").unwrap();
 
     let html = Ssr::render_to_string(&source, "entryPoint", None);
     

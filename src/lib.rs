@@ -3,12 +3,12 @@
 //!
 //! This crate aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 //!
-//! The whole logic is stored inside the [render_to_string()](struct.Ssr.html) function.
+//! The whole logic is stored inside the [render_to_string()](struct.Ssr.html#method.render_to_string) function.
 //!
 //!  # Gettin started
 //! ```toml
 //! [dependencies]
-//! ssr_rs = "0.2.0"
+//! ssr_rs = "0.2.1"
 //! ```
 //!
 //!  # Example
