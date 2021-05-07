@@ -1,40 +1,49 @@
 use ssr_rs::Ssr;
-use std::fs::read_to_string;
 
 #[test]
-#[cfg_attr(tarpaulin, ignore)]
-fn render_start_with_doctype() {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+#[should_panic(expected = "Missing entry point.")]
+fn incorrect_entry_point() {
+    let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
 
-    assert!(Ssr::render_to_string(&source, "SSR", None).starts_with("<!doctype html>"))
+    let _ = Ssr::render_to_string(&source, "IncorrectEntryPoint", None);
 }
 
 #[test]
-#[should_panic]
-fn incorrect_ssr_function_entry_point() {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    Ssr::render_to_string(&source, "Index", None);
-}
-
-#[test]
-#[cfg_attr(tarpaulin, ignore)]
-fn check_if_params_are_rendered() {
+fn pass_param_to_function() {
     use serde_json;
 
-    let mock_props = r##"{
-        "params": [
-            "hello",
-            "ciao",
-            "こんにちは" 
-        ]
-    }"##;
-
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    let mock_props = r#"{"Hello world"}"#;
 
     let json = serde_json::to_string(&mock_props).unwrap();
 
-    let html = Ssr::render_to_string(&source, "SSR", Some(&json));
+    let source = r##"var SSR = {x: (params) => "These are our parameters: " + params};"##;
 
-    assert!(html.contains(r#"<script>window.__INITIAL_PROPS__ ="{\n        \"params\": [\n            \"hello\",\n            \"ciao\",\n            \"こんにちは\" \n        ]\n    }"</script>"#));
+    let result = Ssr::render_to_string(&source, "SSR", Some(&json));
+
+    assert_eq!(
+        result.replace("\\", ""),
+        "These are our parameters: \"{\"Hello world\"}\""
+    );
+
+    let source2 = r##"var SSR = {x: () => "I don't accept params"};"##;
+
+    let result2 = Ssr::render_to_string(&source2, "SSR", Some(&json));
+
+    assert_eq!(result2, "I don't accept params");
+}
+
+#[test]
+fn render_simple_html() {
+    let source = r##"var SSR = {x: () => "<html></html>"};"##;
+
+    let html = Ssr::render_to_string(&source, "SSR", None);
+
+    assert_eq!(html, "<html></html>");
+
+    //Prevent missing semicolon
+    let source2 = r##"var SSR = {x: () => "<html></html>"}"##;
+
+    let html2 = Ssr::render_to_string(&source2, "SSR", None);
+
+    assert_eq!(html2, "<html></html>");
 }
