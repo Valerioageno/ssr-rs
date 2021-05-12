@@ -1,7 +1,7 @@
 use ssr_rs::Ssr;
 
 #[test]
-#[should_panic(expected = "Missing entry point.")]
+#[should_panic(expected = "Missing entry point. Is the bundle exported as a variable?")]
 fn incorrect_entry_point() {
     let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
 
