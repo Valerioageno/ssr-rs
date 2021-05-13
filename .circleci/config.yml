@@ -1,11 +1,11 @@
 version: 2
 jobs:
   build-and-test:
-    docker: 
+    docker:
       - image: circleci/rust:1.51.0-node
-    environment: 
-      RUSTFLAGS: '-D warnings'
-    steps: 
+    environment:
+      RUSTFLAGS: "-D warnings"
+    steps:
       - checkout
       - run:
           name: Version information
@@ -18,16 +18,16 @@ jobs:
           command: cd client && yarn install --yes && yarn build:all
       - restore-cache:
           keys:
-          - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run: 
+            - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+      - run:
           name: Build all targets
           command: cargo build
       - save-cache:
           paths:
-          - /usr/local/cargo/registry
-          - target/debug/.fingerprint
-          - target/debug/build
-          - target/debug/deps
+            - /usr/local/cargo/registry
+            - target/debug/.fingerprint
+            - target/debug/build
+            - target/debug/deps
           key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
       - run:
           name: Run all tests
@@ -38,7 +38,7 @@ jobs:
       - image: circleci/rust
     steps:
       - checkout
-      - run: 
+      - run:
           name: Version information
           command: rustc --version; cargo --version; rustup --version
       - run:
@@ -52,16 +52,16 @@ jobs:
           command: cargo install cargo-audit
       - save_cache:
           paths:
-          - usr/local/cargo
+            - usr/local/cargo
           key: v1-cargo-audit-{{ arch }}
       - run:
           name: Check for known security issues in dependencies
           command: cargo audit
-  
-  format: 
-    docker: 
+
+  format:
+    docker:
       - image: circleci/rust
-    steps: 
+    steps:
       - checkout
       - run:
           name: Version information
@@ -73,10 +73,10 @@ jobs:
           name: Check formatting
           command: cargo fmt --all -- --check
 
-  lint: 
-    docker: 
+  lint:
+    docker:
       - image: circleci/rust
-    steps: 
+    steps:
       - checkout
       - run:
           name: Version information
@@ -87,14 +87,23 @@ jobs:
       - run:
           name: Linting
           command: cargo clippy -- -D warnings
-  
+
   coverage:
     machine: true
     steps:
       - checkout
       - run:
-          name: Coverage with docker
-          command: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
+          name: Pull xd009642/tarpaulin
+          command: docker pull xd009642/tarpaulin
+      - run:
+          name: Generate coverage report
+          command: >-
+            docker run --security-opt seccomp=unconfined
+            -v $PWD:/volume xd009642/tarpaulin
+            cargo tarpaulin --out Xml --all-features
+      - run:
+          name: Upload to codecov.io
+          command: bash <(curl -s https://codecov.io/bash) -Z -f cobertura.xml
 
 workflows:
   version: 2
