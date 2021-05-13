@@ -40,13 +40,15 @@ impl Ssr {
             //Stack-allocated class which sets the execution context for all operations executed within a local scope.
             let scope = &mut v8::ContextScope::new(handle_scope, context);
 
-            let code = v8::String::new(scope, &[source, entry_point].concat())
+            let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
                 .expect("Strings are needed");
 
             let script =
                 v8::Script::compile(scope, code, None).expect("There aren't runnable scripts");
 
-            let exports = script.run(scope).expect("Nothing to export");
+            let exports = script
+                .run(scope)
+                .expect("Missing entry point. Is the bundle exported as a variable?");
 
             let exports = exports.to_object(scope).expect("There are no objects");
 
