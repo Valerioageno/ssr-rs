@@ -2,15 +2,15 @@
 
 [![Valerioageno](https://circleci.com/gh/Valerioageno/ssr-rs.svg?style=svg)](https://github.com/Valerioageno/ssr-rs)
 [![API](https://docs.rs/ssr_rs/badge.svg)](https://docs.rs/ssr_rs)
-
+[![codecov](https://codecov.io/gh/Valerioageno/ssr-rs/branch/main/graph/badge.svg?token=O0CZIZAR7X)](https://codecov.io/gh/Valerioageno/ssr-rs)
 
 The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
-It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a build bundle.js and return a string with the rendered html.
+It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 
-The all logic is stored inside the `render_to_string()` function.
+Currently it works with Webpack bundler v4.44.2; check it out  <a href="https://github.com/Valerioageno/reactix" target="_blank">here</a> a full project who use this crate.
 
-## Gettin started
+## Getting started
 
 Add this to your `Cargo.toml`:
 
@@ -20,6 +20,8 @@ ssr_rs = "0.2.1"
 ```
 
 ## Example
+
+The all logic is stored inside the `render_to_string()` function.
 
 ```rust
 use ssr_rs::Ssr;
@@ -63,6 +65,10 @@ fn main() {
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 }
 ```
+## Contributing
+
+Any helps or suggestions will be appreciated.
+
 <br>
 
 <div style="text-align:center">
