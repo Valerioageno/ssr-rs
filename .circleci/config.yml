@@ -105,6 +105,18 @@ jobs:
           name: Upload to codecov.io
           command: bash <(curl -s https://codecov.io/bash) -Z -f cobertura.xml
 
+  doc:
+    docker:
+      - image: circleci/rust
+    steps:
+      - checkout
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - run:
+          name: Check documentation
+          command: cargo doc --no-deps --document-private-items --all-features --workspace
+
 workflows:
   version: 2
   build-test:
@@ -126,6 +138,10 @@ workflows:
             tags:
               only: /.*/
       - coverage:
+          filters:
+            tags:
+              only: /.*/
+      - doc:
           filters:
             tags:
               only: /.*/
