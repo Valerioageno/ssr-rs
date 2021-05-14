@@ -10,7 +10,7 @@
 //!  # Gettin started
 //! ```toml
 //! [dependencies]
-//! ssr_rs = "0.2.1"
+//! ssr_rs = "0.2.2"
 //! ```
 //!
 //!  # Example
