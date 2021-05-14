@@ -6,6 +6,7 @@ edition = "2018"
 description = "Server side rendering with the v8 engine for parse and evaluate the javascript code"
 readme = "./README.md"
 homepage = "https://github.com/Valerioageno/ssr-rs"
+documentation = "https://docs.rs/ssr_rs"
 repository = "https://github.com/Valerioageno/ssr-rs"
 keywords = ["web", "ssr", "react", "actix", "server-side-render"]
 categories = ["web-programming"]
