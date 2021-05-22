@@ -10,24 +10,17 @@ fn incorrect_entry_point() {
 
 #[test]
 fn pass_param_to_function() {
-    use serde_json;
-
-    let mock_props = r#"{"Hello world"}"#;
-
-    let json = serde_json::to_string(&mock_props).unwrap();
+    let props = r#"{"Hello world"}"#;
 
     let source = r##"var SSR = {x: (params) => "These are our parameters: " + params};"##;
 
-    let result = Ssr::render_to_string(&source, "SSR", Some(&json));
+    let result = Ssr::render_to_string(&source, "SSR", Some(&props));
 
-    assert_eq!(
-        result.replace("\\", ""),
-        "These are our parameters: \"{\"Hello world\"}\""
-    );
+    assert_eq!(result, "These are our parameters: {\"Hello world\"}");
 
     let source2 = r##"var SSR = {x: () => "I don't accept params"};"##;
 
-    let result2 = Ssr::render_to_string(&source2, "SSR", Some(&json));
+    let result2 = Ssr::render_to_string(&source2, "SSR", Some(&props));
 
     assert_eq!(result2, "I don't accept params");
 }
