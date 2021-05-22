@@ -84,7 +84,9 @@ impl Ssr {
             let mut rendered = String::new();
 
             for key in fn_map.keys() {
-                let result = fn_map[key].call(scope, undef, &[params]).expect("Are provided all needed props?");
+                let result = fn_map[key]
+                    .call(scope, undef, &[params])
+                    .expect("Are provided all needed props?");
 
                 let result = result.to_string(scope).unwrap();
 
