@@ -6,8 +6,6 @@ use actix_files as fs;
 
 use ssr_rs::Ssr;
 
-use serde_json;
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
@@ -34,12 +32,10 @@ async fn index() -> HttpResponse {
         ]
     }"##;
 
-    let json = serde_json::to_string(&mock_props).unwrap();
-
     let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
         &source,
         "SSR",
-        Some(&json),
+        Some(&mock_props),
     ))));
 
     HttpResponse::build(StatusCode::OK)

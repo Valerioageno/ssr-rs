@@ -18,7 +18,7 @@ impl Ssr {
     }
 
     /// Evaluates the javascript source code passed and runs the render functions.
-    /// Any initial params (if needed) must be passed as JSON using <a href="https://crates.io/crates/serde_json" target="_blank">serde_json</a>.
+    /// Any initial params (if needed) must be passed as JSON.
     ///
     /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
     ///
@@ -84,7 +84,7 @@ impl Ssr {
             let mut rendered = String::new();
 
             for key in fn_map.keys() {
-                let result = fn_map[key].call(scope, undef, &[params]).unwrap();
+                let result = fn_map[key].call(scope, undef, &[params]).expect("Are provided all needed props?");
 
                 let result = result.to_string(scope).unwrap();
 

@@ -48,15 +48,13 @@ use serde_json;
 
 fn main() {
 
-    let mock_props = r##"{
+    let props = r##"{
         "params": [
             "hello",
             "ciao",
             "こんにちは" 
         ]
     }"##;
-
-    let props = serde_json::to_string(&mock_props).unwrap();
 
     let source = read_to_string("./path/to/build.js").unwrap();
 
