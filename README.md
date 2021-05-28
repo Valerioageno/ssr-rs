@@ -44,7 +44,6 @@ There are included examples with the most famous server frameworks and a default
 ```rust
 use ssr_rs::Ssr;
 use std::fs::read_to_string;
-use serde_json;
 
 fn main() {
 
@@ -67,8 +66,13 @@ fn main() {
 
 Any helps or suggestions will be appreciated.
 
+
+## License
+
+This project is licensed under the MIT License - see the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/LICENSE_MIT">LICENSE_MIT</a> || <a href="https://github.com/Valerioageno/ssr-rs/blob/main/LICENSE_APACHE">LICENSE_APACHE</a> file for more information.
+
 <br>
 
-<div style="text-align:center">
-    <img src="https://raw.githubusercontent.com/Valerioageno/ssr-rs/main/logo.png">
-</div>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Valerioageno/ssr-rs/main/logo.png">
+</p>
