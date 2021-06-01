@@ -84,23 +84,27 @@ impl Ssr {
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope) {
-            for i in 0..props.length() {
-                let name = props.get_index(scope, i).unwrap();
+            fn_map = Some(props)
+                .iter()
+                .enumerate()
+                .map(|(i, &p)| {
+                    let name = p.get_index(scope, i as u32).unwrap();
 
-                //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
-                let mut scope = v8::EscapableHandleScope::new(scope);
+                    //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
+                    let mut scope = v8::EscapableHandleScope::new(scope);
 
-                let func = object.get(&mut scope, name).unwrap();
+                    let func = object.get(&mut scope, name).unwrap();
 
-                let func = unsafe { v8::Local::<v8::Function>::cast(func) };
+                    let func = unsafe { v8::Local::<v8::Function>::cast(func) };
 
-                fn_map.insert(
-                    name.to_string(&mut scope)
-                        .unwrap()
-                        .to_rust_string_lossy(&mut scope),
-                    scope.escape(func),
-                );
-            }
+                    (
+                        name.to_string(&mut scope)
+                            .unwrap()
+                            .to_rust_string_lossy(&mut scope),
+                        scope.escape(func),
+                    )
+                })
+                .collect();
         }
 
         fn_map
