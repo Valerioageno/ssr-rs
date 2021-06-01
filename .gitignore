@@ -1,7 +1,7 @@
 /target
 Cargo.lock
 .idea
-client2/*
+client2/
 .vscode/
 
 client/dist
