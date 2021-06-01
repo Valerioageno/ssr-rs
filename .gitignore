@@ -1,6 +1,8 @@
 /target
 Cargo.lock
 .idea
+client2/*
+.vscode/
 
 client/dist
 process.yml
