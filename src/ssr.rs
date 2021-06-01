@@ -50,29 +50,9 @@ impl Ssr {
                 .run(scope)
                 .expect("Missing entry point. Is the bundle exported as a variable?");
 
-            let exports = exports.to_object(scope).expect("There are no objects");
+            let object = exports.to_object(scope).expect("There are no objects");
 
-            let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
-
-            if let Some(props) = exports.get_own_property_names(scope) {
-                for i in 0..props.length() {
-                    let name = props.get_index(scope, i).unwrap();
-
-                    //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
-                    let mut scope = v8::EscapableHandleScope::new(scope);
-
-                    let func = exports.get(&mut scope, name).unwrap();
-
-                    let func = unsafe { v8::Local::<v8::Function>::cast(func) };
-
-                    fn_map.insert(
-                        name.to_string(&mut scope)
-                            .unwrap()
-                            .to_rust_string_lossy(&mut scope),
-                        scope.escape(func),
-                    );
-                }
-            }
+            let fn_map = Self::create_fn_map(scope, object);
 
             let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
                 Some(s) => s.into(),
@@ -95,5 +75,34 @@ impl Ssr {
 
             rendered
         }
+    }
+
+    fn create_fn_map<'b>(
+        scope: &mut v8::ContextScope<'b, v8::HandleScope>,
+        object: v8::Local<v8::Object>,
+    ) -> HashMap<String, v8::Local<'b, v8::Function>> {
+        let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
+
+        if let Some(props) = object.get_own_property_names(scope) {
+            for i in 0..props.length() {
+                let name = props.get_index(scope, i).unwrap();
+
+                //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
+                let mut scope = v8::EscapableHandleScope::new(scope);
+
+                let func = object.get(&mut scope, name).unwrap();
+
+                let func = unsafe { v8::Local::<v8::Function>::cast(func) };
+
+                fn_map.insert(
+                    name.to_string(&mut scope)
+                        .unwrap()
+                        .to_rust_string_lossy(&mut scope),
+                    scope.escape(func),
+                );
+            }
+        }
+
+        fn_map
     }
 }
