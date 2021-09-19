@@ -27,27 +27,26 @@ rusty_v8 = "0.22.2"
 
 [dev-dependencies]
 
-#Actix depencendies
+# Actix depencendies
 actix-files = "0.5.0"
 actix-web = "3"
 futures = "0.3.13"
 
-#Warp dependencies
+# Warp dependencies
 tokio = { version = "1", features = ["full"] }
 warp = "0.3"
 
-#Tide dependencies
+# Tide dependencies
 tide = "0.16.0"
 async-std = { version = "1.6.0", features = ["attributes"] }
 serde = { version = "1.0", features = ["derive"] }
 
+# Rocket dependencies
+rocket = "0.5.0-rc.1"
+#rocket_contrib = "0.4.7"
+
 # Benchmark dependencies
 criterion = "0.3.4"
-
-
-#Their needs to stay commented because test going to panic with the non-nightly toolchain set
-#rocket = "0.4.7"
-#rocket_contrib = "0.4.7"
 
 [[bench]]
 name = "benchmark"
@@ -70,14 +69,10 @@ path = "examples/warp.rs"
 name = "tide"
 path = "examples/tide.rs"
 
-
-# [[example]]
-# name = "rocket"
-# path = "examples/rocket.rs"
+[[example]]
+name = "rocket"
+path = "examples/rocket.rs"
 
 [[example]]
 name = "run"
 path = "examples/run.rs"
-
-
-
