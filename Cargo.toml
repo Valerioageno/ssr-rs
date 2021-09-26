@@ -23,7 +23,7 @@ path = "src/lib.rs"
 
 [dependencies]
 lazy_static = "1.4.0"
-rusty_v8 = "0.22.2"
+rusty_v8 = "0.30.0"
 
 [dev-dependencies]
 
@@ -43,7 +43,6 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Rocket dependencies
 rocket = "0.5.0-rc.1"
-#rocket_contrib = "0.4.7"
 
 # Benchmark dependencies
 criterion = "0.3.4"
