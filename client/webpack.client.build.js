@@ -1,10 +1,15 @@
-const path = require('path');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+import path from 'path';
+import { CleanWebpackPlugin } from 'clean-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import { fileURLToPath } from 'url';
+import webpack from 'webpack';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const buildDirectory = 'dist';
 const outputDirectory = `${buildDirectory}/client`;
-module.exports = {
+export default {
   mode: 'production',
   target: 'web',
   entry: './src/index.tsx',
@@ -34,19 +39,26 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        use:[{
-          loader: MiniCssExtractPlugin.loader,
-          options: {
-            publicPath: '../',
+        use: [
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              publicPath: '../',
+            },
           },
-        }, 'css-loader'],
+          'css-loader',
+        ],
       },
     ],
   },
   resolve: {
+    fallback: { fs: false, path: false },
     extensions: ['.tsx', '.ts', '.js', '.jsx'],
   },
   plugins: [
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
+    }),
     new CleanWebpackPlugin({
       cleanOnceBeforeBuildPatterns: [path.join(__dirname, buildDirectory)],
     }),

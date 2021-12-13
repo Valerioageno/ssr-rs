@@ -9,11 +9,7 @@
     "target": "es6",
     "jsx": "react-jsx",
     "esModuleInterop": true,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
@@ -25,7 +21,5 @@
     "isolatedModules": true,
     "noEmit": false
   },
-  "include": [
-    "./**/*"
-  ]
+  "include": ["./**/*"]
 }

@@ -2,35 +2,42 @@
   "name": "client",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
+    "@loadable/component": "^5.15.2",
     "@testing-library/jest-dom": "^5.11.4",
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "@types/jest": "^26.0.15",
+    "@types/loadable__component": "^5.13.4",
     "@types/node": "^12.0.0",
     "@types/react": "^17.0.0",
     "@types/react-dom": "^17.0.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
-    "react-scripts": "4.0.3",
     "ts-loader": "^8.1.0",
     "typescript": "^4.1.2",
     "web-vitals": "^1.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "parcel",
     "build:all": "webpack --config ./webpack.client.build.js --progress && webpack --config ./webpack.ssr.js --progress",
     "build:client": "webpack --config ./webpack.client.build.js --progress",
-    "build:ssr": "webpack --config ./webpack.ssr.js --progress",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "build:ssr": "webpack --config ./webpack.ssr.js --progress"
   },
   "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
     ]
+  },
+  "targets": {
+    "client": {
+      "source": "src/index.html"
+    },
+    "backend": {
+      "source": "src/ssrEntry.tsx"
+    }
   },
   "browserslist": {
     "production": [
@@ -49,6 +56,13 @@
     "css-loader": "^5.2.2",
     "file-loader": "^6.2.0",
     "mini-css-extract-plugin": "^1.5.0",
-    "webpack-cli": "^4.6.0"
+    "parcel": "^2.0.1",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1"
+  },
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "singleQuote": true
   }
 }

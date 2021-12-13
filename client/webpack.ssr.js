@@ -1,22 +1,33 @@
-const path = require('path');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+import path from 'path';
+import { CleanWebpackPlugin } from 'clean-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import { fileURLToPath } from 'url';
+import webpack from 'webpack';
 
-const buildDirectory = "dist/ssr/"
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-module.exports = {
+const buildDirectory = 'dist/ssr/';
+
+export default {
   mode: 'production',
   target: 'web',
   entry: path.resolve(__dirname, './src/ssrEntry.tsx'),
   output: {
+    publicPath: '',
+    globalObject: 'this',
     path: path.resolve(__dirname, buildDirectory),
     // render_to_string entry point name!!
-    library: 'SSR',
+    library: {
+      type: 'module',
+      name: 'SSR',
+    },
     libraryTarget: 'var',
-    filename: 'index.js'
+    filename: 'index.js',
   },
   resolve: {
-    extensions: [".js", ".jsx", ".json", ".ts", ".tsx"]
+    fallback: { fs: false, path: false },
+    extensions: ['.js', '.jsx', '.json', '.ts', '.tsx'],
   },
   module: {
     rules: [
@@ -25,9 +36,9 @@ module.exports = {
         exclude: /node_modules/,
         use: [
           {
-            loader: "ts-loader"
-          }
-        ]
+            loader: 'ts-loader',
+          },
+        ],
       },
       {
         test: /\.(png|jp(e*)g|svg|gif)$/,
@@ -42,9 +53,9 @@ module.exports = {
       },
       {
         test: /\.css$/i,
-        use: [MiniCssExtractPlugin.loader, "css-loader"],
+        use: [MiniCssExtractPlugin.loader, 'css-loader'],
       },
-    ]
+    ],
   },
   plugins: [
     new MiniCssExtractPlugin({

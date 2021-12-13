@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import logo from './logo.svg';
 import './App.css';
+import loadable from '@loadable/component';
+
+const Logo = loadable(() => import('./Async'));
 
 interface Props {
-  params: string[]
+  params: string[];
 }
 
 function App(props: Props | undefined) {
-
   const [count, setCount] = useState(0);
 
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
+        <Logo />
         <p>
           Edit <code>src/App.tsx</code> and save to reload.
         </p>
@@ -25,19 +26,17 @@ function App(props: Props | undefined) {
         >
           Learn React
         </a>
-        <button onClick={() => setCount(count +1)}>{count}</button>
-        
-        {
-          props?.params ?
+        <button onClick={() => setCount(count + 1)}>{count}</button>
 
+        {props?.params ? (
           <div className="paramsContainer">
             <ul>
-              { props?.params?.map((elem, i) => <li key={i}>{elem}</li>) }
+              {props?.params?.map((elem, i) => (
+                <li key={i}>{elem}</li>
+              ))}
             </ul>
           </div>
-          : null
-        }
-        
+        ) : null}
       </header>
     </div>
   );

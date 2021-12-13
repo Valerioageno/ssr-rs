@@ -1,6 +1,5 @@
 use actix_files as fs;
-use actix_web::{get, http::StatusCode, web, App, Error, HttpResponse, HttpServer};
-use futures::{future::ok, stream::once};
+use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
 use std::fs::read_to_string;
 
 use ssr_rs::Ssr;
@@ -23,11 +22,12 @@ async fn main() -> std::io::Result<()> {
 async fn index() -> HttpResponse {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
-        &source, "SSR", None,
-    ))));
+    // The streaming approach is problematic; especially on Chrome
+    // let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
+    //     &source, "SSR", None,
+    // ))));
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .streaming(body)
+        .body(Ssr::render_to_string(&source, "SSR", None))
 }

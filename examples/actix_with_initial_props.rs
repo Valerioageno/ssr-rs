@@ -1,5 +1,4 @@
-use actix_web::{get, http::StatusCode, web, App, Error, HttpResponse, HttpServer};
-use futures::{future::ok, stream::once};
+use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
 use std::fs::read_to_string;
 
 use actix_files as fs;
@@ -15,7 +14,7 @@ async fn main() -> std::io::Result<()> {
             .service(fs::Files::new("/scripts", "client/dist/client/").show_files_listing())
             .service(index)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
@@ -32,13 +31,14 @@ async fn index() -> HttpResponse {
         ]
     }"##;
 
-    let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
-        &source,
-        "SSR",
-        Some(&mock_props),
-    ))));
+    // The streaming approach is problematic; especially on Chrome
+    // let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
+    //     &source,
+    //     "SSR",
+    //     Some(&mock_props),
+    // ))));
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .streaming(body)
+        .body(Ssr::render_to_string(&source, "SSR", Some(&mock_props)))
 }
