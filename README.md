@@ -1,4 +1,4 @@
-# 🚀  Rust server side rendering
+# 🚀 Rust server side rendering
 
 [![Valerioageno](https://circleci.com/gh/Valerioageno/ssr-rs.svg?style=svg)](https://github.com/Valerioageno/ssr-rs)
 [![API](https://docs.rs/ssr_rs/badge.svg)](https://docs.rs/ssr_rs)
@@ -8,7 +8,7 @@ The project aims to enable server side rendering on rust servers in the simplest
 
 It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 
-Currently it works with Webpack bundler v4.44.2; check it out  <a href="https://github.com/Valerioageno/reactix" target="_blank">here</a> a full project who use this crate.
+Currently it works with Webpack bundler v5.65.0; check it out <a href="https://github.com/Valerioageno/reactix" target="_blank">here</a> a full project who use this crate.
 
 ## Getting started
 
@@ -32,7 +32,7 @@ fn main() {
     let source = read_to_string("./path/to/build.js").unwrap();
 
     let html = Ssr::render_to_string(&source, "entryPoint", None);
-    
+
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 }
 ```
@@ -51,21 +51,21 @@ fn main() {
         "params": [
             "hello",
             "ciao",
-            "こんにちは" 
+            "こんにちは"
         ]
     }"##;
 
     let source = read_to_string("./path/to/build.js").unwrap();
 
     let html = Ssr::render_to_string(&source, "entryPoint", Some(&props));
-    
+
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 }
 ```
+
 ## Contributing
 
 Any helps or suggestions will be appreciated.
-
 
 ## License
 

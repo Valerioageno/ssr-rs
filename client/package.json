@@ -21,15 +21,24 @@
   },
   "scripts": {
     "start": "parcel",
+    "test": "jest",
     "build:all": "webpack --config ./webpack.client.build.js --progress && webpack --config ./webpack.ssr.js --progress",
     "build:client": "webpack --config ./webpack.client.build.js --progress",
     "build:ssr": "webpack --config ./webpack.ssr.js --progress"
   },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "moduleFileExtensions": ["ts", "tsx", "js"],
+    "setupFilesAfterEnv": ["<rootDir>/src/setupTests.ts"],
+    "moduleNameMapper": {
+      ".+\\.css$": "<rootDir>/src/styleMock.ts",
+      ".+\\.svg$": "<rootDir>/src/styleMock.ts"
+    },
+    "testMatch": ["**/*.(test|spec).(ts|tsx|js)"]
+  },
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
+    "extends": ["react-app", "react-app/jest"]
   },
   "targets": {
     "client": {
@@ -40,11 +49,7 @@
     }
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
+    "production": [">0.2%", "not dead", "not op_mini all"],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
@@ -52,6 +57,8 @@
     ]
   },
   "devDependencies": {
+    "ts-jest": "^27.1.1",
+    "jest": "^27.4.5",
     "clean-webpack-plugin": "^4.0.0-alpha.0",
     "css-loader": "^5.2.2",
     "file-loader": "^6.2.0",
