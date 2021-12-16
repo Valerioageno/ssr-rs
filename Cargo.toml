@@ -2,7 +2,7 @@
 name = "ssr_rs"
 version = "0.2.3"
 authors = ["Valerio <valerioageno@yahoo.it>"]
-edition = "2018"
+edition = "2021"
 description = "Server side rendering with the v8 engine for parse and evaluate the javascript code"
 readme = "./README.md"
 homepage = "https://github.com/Valerioageno/ssr-rs"
@@ -24,13 +24,14 @@ path = "src/lib.rs"
 [dependencies]
 lazy_static = "1.4.0"
 rusty_v8 = "0.30.0"
+futures = "0.3.13"
+env_logger = "0.9.0"
 
 [dev-dependencies]
 
 # Actix depencendies
 actix-files = "0.6.0-beta.10"
 actix-web = "4.0.0-beta.12"
-futures = "0.3.13"
 
 # Warp dependencies
 tokio = { version = "1", features = ["full"] }

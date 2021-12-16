@@ -1,9 +1,88 @@
+use futures::channel::oneshot::{Receiver, Sender};
 use rusty_v8 as v8;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
+use v8::{Context, HandleScope};
 
-pub struct Ssr {}
+#[derive(Clone)]
+pub struct Ssr<'a> {
+    inbox: std::sync::mpsc::Sender<(String, Sender<String>)>,
+    source: &'a str,
+    entry_point: &'a str,
+}
 
-impl Ssr {
+impl<'a> Ssr<'a> {
+    pub async fn listen(
+        self,
+        reciever: std::sync::mpsc::Receiver<(String, Sender<String>)>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        //The isolate represents an isolated instance of the v8 engine
+        //Object from one isolate must not be used in other isolates.
+        let mut isolate: v8::OwnedIsolate = v8::Isolate::new(Default::default());
+
+        //A stack-allocated class that governs a number of local handles.
+        let mut handle_scope: HandleScope<()> = v8::HandleScope::new(&mut isolate);
+
+        //A sandboxed execution context with its own set of built-in objects and functions.
+        let context: v8::Local<Context> = v8::Context::new(&mut handle_scope);
+
+        //Stack-allocated class which sets the execution context for all operations executed within a local scope.
+        let mut scope = v8::ContextScope::new(&mut handle_scope, context);
+
+        let code = v8::String::new(&mut scope, &format!("{};{}", self.source, self.entry_point))
+            .expect("Strings are needed");
+
+        let script =
+            v8::Script::compile(&mut scope, code, None).expect("There aren't runnable scripts");
+
+        let exports = script
+            .run(&mut scope)
+            .expect("Missing entry point. Is the bundle exported as a variable?");
+
+        let object = exports.to_object(&mut scope).expect("There are no objects");
+        let fn_map = Self::create_fn_map(&mut scope, object);
+        Ok(while let (params, out) = reciever.recv().unwrap() {
+            let params: v8::Local<v8::Value> = match v8::String::new(&mut scope, &params) {
+                Some(s) => s.into(),
+                None => v8::undefined(&mut scope).into(),
+            };
+
+            let undef = v8::undefined(&mut scope).into();
+
+            let mut rendered = String::new();
+
+            for key in fn_map.keys() {
+                let result = fn_map[key]
+                    .call(&mut scope, undef, &[params])
+                    .expect("Are provided all needed props?");
+
+                let result = result.to_string(&mut scope).unwrap();
+
+                rendered = format!("{}{}", rendered, result.to_rust_string_lossy(&mut scope));
+            }
+            out.send(rendered).unwrap();
+        })
+    }
+
+    pub fn new(
+        source: &'a str,
+        entry_point: &'a str,
+    ) -> (Self, std::sync::mpsc::Receiver<(String, Sender<String>)>) {
+        Self::init_platform();
+        let (inbox, inbox_out): (
+            std::sync::mpsc::Sender<(String, Sender<String>)>,
+            std::sync::mpsc::Receiver<(String, Sender<String>)>,
+        ) = std::sync::mpsc::channel();
+
+        (
+            Ssr {
+                inbox,
+                source,
+                entry_point,
+            },
+            inbox_out,
+        )
+    }
+
     fn init_platform() {
         lazy_static! {
           static ref INIT_PLATFORM: () = {
@@ -23,57 +102,16 @@ impl Ssr {
     /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
     ///
     /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn render_to_string(source: &str, entry_point: &str, params: Option<&str>) -> String {
-        Self::init_platform();
-
+    pub async fn render_to_string(
+        &self,
+        params: Option<&str>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         {
-            //The isolate rapresente an isolated instance of the v8 engine
-            //Object from one isolate must not be used in other isolates.
-            let isolate = &mut v8::Isolate::new(Default::default());
+            let (send, recieve) = futures::channel::oneshot::channel();
+            let sender = &self.inbox;
+            sender.send((params.unwrap_or("").to_string(), send))?;
 
-            //A stack-allocated class that governs a number of local handles.
-            let handle_scope = &mut v8::HandleScope::new(isolate);
-
-            //A sandboxed execution context with its own set of built-in objects and functions.
-            let context = v8::Context::new(handle_scope);
-
-            //Stack-allocated class which sets the execution context for all operations executed within a local scope.
-            let scope = &mut v8::ContextScope::new(handle_scope, context);
-
-            let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
-                .expect("Strings are needed");
-
-            let script =
-                v8::Script::compile(scope, code, None).expect("There aren't runnable scripts");
-
-            let exports = script
-                .run(scope)
-                .expect("Missing entry point. Is the bundle exported as a variable?");
-
-            let object = exports.to_object(scope).expect("There are no objects");
-
-            let fn_map = Self::create_fn_map(scope, object);
-
-            let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
-                Some(s) => s.into(),
-                None => v8::undefined(scope).into(),
-            };
-
-            let undef = v8::undefined(scope).into();
-
-            let mut rendered = String::new();
-
-            for key in fn_map.keys() {
-                let result = fn_map[key]
-                    .call(scope, undef, &[params])
-                    .expect("Are provided all needed props?");
-
-                let result = result.to_string(scope).unwrap();
-
-                rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
-            }
-
-            rendered
+            Ok(recieve.await?)
         }
     }
 
