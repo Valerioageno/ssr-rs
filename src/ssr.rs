@@ -1,19 +1,21 @@
-use futures::channel::oneshot::{Receiver, Sender};
+use futures::channel::oneshot::Sender;
 use rusty_v8 as v8;
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 use v8::{Context, HandleScope};
 
 #[derive(Clone)]
 pub struct Ssr<'a> {
-    inbox: std::sync::mpsc::Sender<(String, Sender<String>)>,
+    pub inbox: std::sync::mpsc::Sender<SsrRequest>,
     source: &'a str,
     entry_point: &'a str,
 }
 
+pub type SsrRequest = (String, Sender<String>);
+
 impl<'a> Ssr<'a> {
-    pub async fn listen(
+    pub fn listen(
         self,
-        reciever: std::sync::mpsc::Receiver<(String, Sender<String>)>,
+        reciever: std::sync::mpsc::Receiver<SsrRequest>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         //The isolate represents an isolated instance of the v8 engine
         //Object from one isolate must not be used in other isolates.
@@ -40,8 +42,8 @@ impl<'a> Ssr<'a> {
 
         let object = exports.to_object(&mut scope).expect("There are no objects");
         let fn_map = Self::create_fn_map(&mut scope, object);
-        Ok(while let (params, out) = reciever.recv().unwrap() {
-            let params: v8::Local<v8::Value> = match v8::String::new(&mut scope, &params) {
+        Ok(while let Ok((props, out)) = reciever.recv() {
+            let params: v8::Local<v8::Value> = match v8::String::new(&mut scope, &props) {
                 Some(s) => s.into(),
                 None => v8::undefined(&mut scope).into(),
             };
@@ -66,12 +68,9 @@ impl<'a> Ssr<'a> {
     pub fn new(
         source: &'a str,
         entry_point: &'a str,
-    ) -> (Self, std::sync::mpsc::Receiver<(String, Sender<String>)>) {
+    ) -> (Self, std::sync::mpsc::Receiver<SsrRequest>) {
         Self::init_platform();
-        let (inbox, inbox_out): (
-            std::sync::mpsc::Sender<(String, Sender<String>)>,
-            std::sync::mpsc::Receiver<(String, Sender<String>)>,
-        ) = std::sync::mpsc::channel();
+        let (inbox, inbox_out) = std::sync::mpsc::channel::<SsrRequest>();
 
         (
             Ssr {
@@ -107,11 +106,11 @@ impl<'a> Ssr<'a> {
         params: Option<&str>,
     ) -> Result<String, Box<dyn std::error::Error>> {
         {
-            let (send, recieve) = futures::channel::oneshot::channel();
+            let (send, receive) = futures::channel::oneshot::channel::<String>();
             let sender = &self.inbox;
             sender.send((params.unwrap_or("").to_string(), send))?;
 
-            Ok(recieve.await?)
+            Ok(receive.await?)
         }
     }
 
