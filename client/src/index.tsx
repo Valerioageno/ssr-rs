@@ -8,21 +8,21 @@ const mockProps = {
   params: ['first param', 'second param', 'third param'],
 };
 
-const props = (() => {
+const props = () => {
   const stateHolder = window as { __INITIAL_PROPS__?: any };
   const ssrState = stateHolder.__INITIAL_PROPS__;
 
   if (ssrState) {
-    //delete stateHolder.__INITIAL_PROPS__;
+    delete stateHolder.__INITIAL_PROPS__;
     return ssrState;
   }
   return mockProps;
-})();
+};
 
 if (process.env.NODE_ENV !== 'production') {
   render(
     <React.StrictMode>
-      <App {...props} />
+      <App {...props()} />
     </React.StrictMode>,
     document.getElementById('root')
   );
@@ -35,14 +35,15 @@ if (process.env.NODE_ENV !== 'production') {
   // We might have the element already
   let el = document.getElementById('root');
   if (el) {
-    hydrate(<App {...props} />, el);
+    hydrate(<App {...props()} />, el);
 
     reportWebVitals();
   } else {
     // otherwise set up an observer
     const observer = new MutationObserver((mutations, obs) => {
+      el = document.getElementById('root');
       if (el) {
-        hydrate(<App {...props} />, el);
+        hydrate(<App {...props()} />, el);
 
         reportWebVitals();
         obs.disconnect();

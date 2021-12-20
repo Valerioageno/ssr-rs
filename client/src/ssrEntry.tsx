@@ -18,7 +18,7 @@ export const Index = (params: string | undefined) => {
       ${renderToStaticMarkup(
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__INITIAL_PROPS__ =${params}`,
+            __html: `window.__INITIAL_PROPS__ =${params || 'undefined'}`,
           }}
         />
       )}
