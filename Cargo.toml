@@ -23,7 +23,7 @@ path = "src/lib.rs"
 
 [dependencies]
 lazy_static = "1.4.0"
-rusty_v8 = "0.30.0"
+v8 = "0.44.3"
 
 [dev-dependencies]
 
