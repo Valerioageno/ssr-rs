@@ -6,10 +6,10 @@ use ssr_rs::Ssr;
 use std::fs::read_to_string;
 
 #[get("/")]
-fn index() -> content::Html<String> {
+fn index() -> content::RawHtml<String> {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    content::Html(Ssr::render_to_string(&source, "SSR", None))
+    content::RawHtml(Ssr::render_to_string(&source, "SSR", None))
 }
 
 #[launch]
