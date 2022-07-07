@@ -42,7 +42,7 @@ async-std = { version = "1.6.0", features = ["attributes"] }
 serde = { version = "1.0", features = ["derive"] }
 
 # Rocket dependencies
-rocket = "0.5.0-rc.1"
+rocket = "0.5.0-rc.2"
 
 # Benchmark dependencies
 criterion = "0.3.4"
