@@ -2,6 +2,13 @@ use std::collections::HashMap;
 
 pub struct Ssr {}
 
+#[derive(Debug)]
+pub enum Error<'a> {
+    JSBuildError(&'a str),
+    InputError(String),
+    V8Error(String),
+}
+
 impl Ssr {
     fn init_platform() {
         lazy_static! {
@@ -22,7 +29,11 @@ impl Ssr {
     /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
     ///
     /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn render_to_string(source: &str, entry_point: &str, params: Option<&str>) -> String {
+    pub fn render_to_string(
+        source: &str,
+        entry_point: &str,
+        params: Option<&str>,
+    ) -> Result<String, Error> {
         Self::init_platform();
 
         {
@@ -39,19 +50,29 @@ impl Ssr {
             //Stack-allocated class which sets the execution context for all operations executed within a local scope.
             let scope = &mut v8::ContextScope::new(handle_scope, context);
 
-            let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
-                .expect("Invalid JS: Strings are needed");
+            let code = match v8::String::new(scope, &format!("{};{}", source, entry_point)) {
+                Some(val) => val,
+                None => return Err(Error::JSBuildError("Strings are needed.")),
+            };
 
-            let script = v8::Script::compile(scope, code, None)
-                .expect("Invalid JS: There aren't runnable scripts");
+            let script = match v8::Script::compile(scope, code, None) {
+                Some(val) => val,
+                None => return Err(Error::JSBuildError("There aren't runnable scripts.")),
+            };
 
-            let exports = script
-                .run(scope)
-                .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
+            let exports = match script.run(scope) {
+                Some(val) => val,
+                None => {
+                    return Err(Error::JSBuildError(
+                        "Missing entry point. Is the bundle exporting a variable?",
+                    ))
+                }
+            };
 
-            let object = exports
-                .to_object(scope)
-                .expect("Invalid JS: There are no objects");
+            let object = match exports.to_object(scope) {
+                Some(val) => val,
+                None => Err(Error::JSBuildError("There are no object in the JS bundle.")),
+            };
 
             let fn_map = Self::create_fn_map(scope, object);
 
@@ -65,16 +86,17 @@ impl Ssr {
             let mut rendered = String::new();
 
             for key in fn_map.keys() {
-                let result = fn_map[key].call(scope, undef, &[params]).unwrap();
-
-                let result = result
-                    .to_string(scope)
-                    .expect("Failed to parse the result to string");
+                let result = match fn_map[key]
+                    .call(scope, undef, &[params]) {
+                    Some(val) => val,
+                    None => Err(Error::InputError("Missing props."))
+                };
+                let result = result.to_string(scope).unwrap();
 
                 rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
             }
 
-            rendered
+            Ok(rendered)
         }
     }
 
