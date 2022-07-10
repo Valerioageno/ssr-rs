@@ -1,5 +1,5 @@
 use actix_files as fs;
-use actix_web::{get, http::StatusCode, web, App, HttpResponse, HttpServer};
+use actix_web::{get, http::StatusCode, middleware::Logger, web, App, HttpResponse, HttpServer};
 use std::fs::read_to_string;
 
 use ssr_rs::Ssr;
@@ -8,9 +8,12 @@ use ssr_rs::Ssr;
 async fn main() -> std::io::Result<()> {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
     let js = Ssr::new(source, "SSR");
     HttpServer::new(move || {
         App::new()
+            .wrap(Logger::default())
             .app_data(web::Data::new(js.clone()))
             .service(fs::Files::new("/styles", "client/dist/ssr/styles/").show_files_listing())
             .service(fs::Files::new("/images", "client/dist/ssr/images/").show_files_listing())
