@@ -12,17 +12,22 @@ fn incorrect_entry_point() {
 fn pass_param_to_function() {
     let props = r#"{"Hello world"}"#;
 
-    let source = r##"var SSR = {x: (params) => "These are our parameters: " + params};"##;
+    let accept_params_source =
+        r##"var SSR = {x: (params) => "These are our parameters: " + params};"##;
 
-    let result = Ssr::render_to_string(&source, "SSR", Some(&props));
+    let result = Ssr::render_to_string(&accept_params_source, "SSR", Some(&props));
 
     assert_eq!(result, "These are our parameters: {\"Hello world\"}");
 
-    let source2 = r##"var SSR = {x: () => "I don't accept params"};"##;
+    let no_params_source = r##"var SSR = {x: () => "I don't accept params"};"##;
 
-    let result2 = Ssr::render_to_string(&source2, "SSR", Some(&props));
+    let result2 = Ssr::render_to_string(&no_params_source, "SSR", Some(&props));
 
     assert_eq!(result2, "I don't accept params");
+
+    let result3 = Ssr::render_to_string(&accept_params_source, "SSR", None);
+
+    assert_eq!(result3, "These are our parameters: ");
 }
 
 #[test]
