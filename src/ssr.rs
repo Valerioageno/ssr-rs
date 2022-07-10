@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Ssr<'a> {
     // TODO: Check if better Box<str> instead of String
     source: String,
@@ -132,5 +132,25 @@ impl<'a> Ssr<'a> {
         }
 
         fn_map
+    }
+}
+
+#[cfg(tests)]
+mod tests {
+
+    #[test]
+    fn check_struct_instance() {
+        let js = Ssr::new(
+            r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+            "SSR",
+        );
+
+        assert_eq!(
+            js,
+            Ssr {
+                source: r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+                entry_point: "SSR"
+            }
+        )
     }
 }
