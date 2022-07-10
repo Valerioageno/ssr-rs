@@ -1,11 +1,19 @@
 use ssr_rs::Ssr;
 
 #[test]
-#[should_panic(expected = "Missing entry point. Is the bundle exported as a variable?")]
+#[should_panic]
 fn incorrect_entry_point() {
     let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
 
     let _ = Ssr::one_shot_render(source.to_owned(), "IncorrectEntryPoint", None);
+}
+
+#[test]
+#[should_panic]
+fn empty_code() {
+    let source = r##""##;
+
+    let _ = Ssr::one_shot_render(source.to_owned(), "SSR", None);
 }
 
 #[test]
@@ -44,4 +52,25 @@ fn render_simple_html() {
     let html2 = Ssr::one_shot_render(source2.to_owned(), "SSR", None);
 
     assert_eq!(html2, "<html></html>");
+}
+
+#[test]
+fn render_from_struct_instance() {
+    let js = Ssr::new(
+        r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+        "SSR",
+    );
+
+    assert_eq!(js.render_to_string(None), "<html></html>");
+    assert_eq!(
+        js.render_to_string(Some(r#"{"Hello world"}"#)),
+        "<html></html>"
+    );
+
+    let js2 = Ssr::new(
+        r##"var SSR = {x: () => "I don't accept params"};"##.to_string(),
+        "SSR",
+    );
+
+    assert_eq!(js2.render_to_string(None), "I don't accept params");
 }
