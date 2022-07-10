@@ -7,7 +7,7 @@ pub fn bench_one_shot_render_no_params(c: &mut Criterion) {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
     c.bench_function("render_to_string_no_params", |b| {
-        b.iter(|| Ssr::one_shot_render(Box::new(&source), "SSR", None))
+        b.iter(|| Ssr::one_shot_render(source.clone(), "SSR", None))
     });
 }
 
@@ -23,7 +23,7 @@ pub fn bench_one_shot_render_with_params(c: &mut Criterion) {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
     c.bench_function("render_to_string_with_params", |b| {
-        b.iter(|| Ssr::one_shot_render(Box::new(&source), "SSR", Some(&mock_props)))
+        b.iter(|| Ssr::one_shot_render(source.clone(), "SSR", Some(&mock_props)))
     });
 }
 
