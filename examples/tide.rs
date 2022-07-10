@@ -16,7 +16,8 @@ async fn main() -> tide::Result<()> {
 async fn return_html(_req: Request<()>) -> tide::Result {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    let html = Ssr::render_to_string(&source, "SSR", None);
+    let js = Ssr::new(source, "SSR");
+    let html = js.render_to_string(None);
 
     let response = Response::builder(200)
         .body(html)

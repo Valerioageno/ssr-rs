@@ -1,8 +1,23 @@
 use std::collections::HashMap;
 
-pub struct Ssr {}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Ssr<'a> {
+    // TODO: Check if better Box<str> instead of String
+    source: String,
+    entry_point: &'a str,
+}
 
-impl Ssr {
+impl<'a> Ssr<'a> {
+    /// Create an instance of the Ssr struct instanciate the v8 platform as well.
+    pub fn new(source: String, entry_point: &'a str) -> Self {
+        Self::init_platform();
+
+        Ssr {
+            source,
+            entry_point,
+        }
+    }
+
     fn init_platform() {
         lazy_static! {
           static ref INIT_PLATFORM: () = {
@@ -16,66 +31,74 @@ impl Ssr {
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
-    /// Evaluates the javascript source code passed and runs the render functions.
+    /// Evaluates the javascript source code passed as argument and render it as a String.
     /// Any initial params (if needed) must be passed as JSON.
     ///
     /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
     ///
     /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn render_to_string(source: &str, entry_point: &str, params: Option<&str>) -> String {
+    pub fn one_shot_render(source: String, entry_point: &str, params: Option<&str>) -> String {
         Self::init_platform();
 
-        {
-            //The isolate rapresente an isolated instance of the v8 engine
-            //Object from one isolate must not be used in other isolates.
-            let isolate = &mut v8::Isolate::new(Default::default());
+        Self::render(source, entry_point, params)
+    }
 
-            //A stack-allocated class that governs a number of local handles.
-            let handle_scope = &mut v8::HandleScope::new(isolate);
+    /// Evaluates the JS source code instanciate in the Ssr struct
+    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
+    pub fn render_to_string(&self, params: Option<&str>) -> String {
+        Self::render(self.source.clone(), self.entry_point, params)
+    }
 
-            //A sandboxed execution context with its own set of built-in objects and functions.
-            let context = v8::Context::new(handle_scope);
+    fn render(source: String, entry_point: &str, params: Option<&str>) -> String {
+        //The isolate rapresente an isolated instance of the v8 engine
+        //Object from one isolate must not be used in other isolates.
+        let isolate = &mut v8::Isolate::new(Default::default());
 
-            //Stack-allocated class which sets the execution context for all operations executed within a local scope.
-            let scope = &mut v8::ContextScope::new(handle_scope, context);
+        //A stack-allocated class that governs a number of local handles.
+        let handle_scope = &mut v8::HandleScope::new(isolate);
 
-            let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
-                .expect("Invalid JS: Strings are needed");
+        //A sandboxed execution context with its own set of built-in objects and functions.
+        let context = v8::Context::new(handle_scope);
 
-            let script = v8::Script::compile(scope, code, None)
-                .expect("Invalid JS: There aren't runnable scripts");
+        //Stack-allocated class which sets the execution context for all operations executed within a local scope.
+        let scope = &mut v8::ContextScope::new(handle_scope, context);
 
-            let exports = script
-                .run(scope)
-                .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
+        let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
+            .expect("Invalid JS: Strings are needed");
 
-            let object = exports
-                .to_object(scope)
-                .expect("Invalid JS: There are no objects");
+        let script = v8::Script::compile(scope, code, None)
+            .expect("Invalid JS: There aren't runnable scripts");
 
-            let fn_map = Self::create_fn_map(scope, object);
+        let exports = script
+            .run(scope)
+            .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
 
-            let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
-                Some(s) => s.into(),
-                None => v8::undefined(scope).into(),
-            };
+        let object = exports
+            .to_object(scope)
+            .expect("Invalid JS: There are no objects");
 
-            let undef = v8::undefined(scope).into();
+        let fn_map = Self::create_fn_map(scope, object);
 
-            let mut rendered = String::new();
+        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
+            Some(s) => s.into(),
+            None => v8::undefined(scope).into(),
+        };
 
-            for key in fn_map.keys() {
-                let result = fn_map[key].call(scope, undef, &[params]).unwrap();
+        let undef = v8::undefined(scope).into();
 
-                let result = result
-                    .to_string(scope)
-                    .expect("Failed to parse the result to string");
+        let mut rendered = String::new();
 
-                rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
-            }
+        for key in fn_map.keys() {
+            let result = fn_map[key].call(scope, undef, &[params]).unwrap();
 
-            rendered
+            let result = result
+                .to_string(scope)
+                .expect("Failed to parse the result to string");
+
+            rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
         }
+
+        rendered
     }
 
     fn create_fn_map<'b>(
@@ -109,5 +132,25 @@ impl Ssr {
         }
 
         fn_map
+    }
+}
+
+#[cfg(tests)]
+mod tests {
+
+    #[test]
+    fn check_struct_instance() {
+        let js = Ssr::new(
+            r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+            "SSR",
+        );
+
+        assert_eq!(
+            js,
+            Ssr {
+                source: r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+                entry_point: "SSR"
+            }
+        )
     }
 }

@@ -7,8 +7,8 @@ use warp::{http::Response, Filter};
 async fn main() {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    let html = warp::path::end()
-        .map(move || Response::builder().body(Ssr::render_to_string(&source, "SSR", None)));
+    let js = Ssr::new(source, "SSR");
+    let html = warp::path::end().map(move || Response::builder().body(js.render_to_string(None)));
 
     let css = warp::path("styles").and(warp::fs::dir("./client/dist/ssr/styles/"));
     let scripts = warp::path("scripts").and(warp::fs::dir("./client/dist/client/"));
