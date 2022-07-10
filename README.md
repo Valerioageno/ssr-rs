@@ -28,11 +28,12 @@ use ssr_rs::Ssr;
 use std::fs::read_to_string;
 
 fn main() {
-
     let source = read_to_string("./path/to/build.js").unwrap();
 
-    let html = Ssr::render_to_string(&source, "entryPoint", None);
+    let js = Ssr::new(&source, "entryPoint");
 
+    let html = js.render_to_string(None);
+    
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 }
 ```
@@ -57,9 +58,28 @@ fn main() {
 
     let source = read_to_string("./path/to/build.js").unwrap();
 
-    let html = Ssr::render_to_string(&source, "entryPoint", Some(&props));
+    let js = Ssr::new(&source, "entryPoint");
+
+    let html = js.render_to_string(Some(&props));
 
     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
+}
+```
+
+It's also possible just run the logic in a single shot just with Ssr::one_shot_render()
+# Example single shot
+
+```rust
+use ssr_rs::Ssr;
+use std::fs::read_to_string;
+
+fn main() {
+
+    let source = read_to_string("./path/to/build.js").unwrap();
+
+    let html = Ssr::one_shot_render(Box::new(&source), "entryPoint", None);
+
+    assert_eq!(html, "<!doctype html><hmtl>...</html>".to_string());
 }
 ```
 

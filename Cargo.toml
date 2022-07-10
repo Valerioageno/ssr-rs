@@ -75,3 +75,8 @@ path = "examples/rocket.rs"
 [[example]]
 name = "run"
 path = "examples/run.rs"
+
+
+[[example]]
+name = "shared"
+path = "examples/shared_ssr.rs"

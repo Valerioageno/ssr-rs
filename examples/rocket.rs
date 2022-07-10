@@ -9,7 +9,9 @@ use std::fs::read_to_string;
 fn index() -> content::RawHtml<String> {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    content::RawHtml(Ssr::render_to_string(&source, "SSR", None))
+    let js = Ssr::new(source, "SSR");
+
+    content::RawHtml(js.render_to_string(None))
 }
 
 #[launch]

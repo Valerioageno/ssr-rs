@@ -10,7 +10,7 @@
 //!  # Gettin started
 //! ```toml
 //! [dependencies]
-//! ssr_rs = "0.2.3"
+//! ssr_rs = "0.3.0"
 //! ```
 //!
 //!  # Example
@@ -24,7 +24,9 @@
 //! fn main() {
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let html = Ssr::render_to_string(&source, "entryPoint", None);
+//!     let js = Ssr::new(source, "entryPoint");
+//!
+//!     let html = js.render_to_string(None);
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
@@ -49,10 +51,30 @@
 //!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let html = Ssr::render_to_string(&source, "entryPoint", Some(&props));
+//!     let js = Ssr::new(source, "entryPoint");
+//!
+//!     let html = js.render_to_string(Some(&props));
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
+//!```
+//! It's also possible just run the logic in a single shot just with Ssr::one_shot_render()
+//!
+//! # Example single shot
+//!
+//! ```no_run
+//! use ssr_rs::Ssr;
+//! use std::fs::read_to_string;
+//!
+//! fn main() {
+//!
+//!     let source = read_to_string("./path/to/build.js").unwrap();
+//!
+//!     let html = Ssr::one_shot_render(source, "entryPoint", None);
+//!
+//!     assert_eq!(html, "<!doctype html><hmtl>...</html>".to_string());
+//! }
+//! ```
 
 #[macro_use]
 extern crate lazy_static;

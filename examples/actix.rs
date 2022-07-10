@@ -22,12 +22,8 @@ async fn main() -> std::io::Result<()> {
 async fn index() -> HttpResponse {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    // The streaming approach is problematic; especially on Chrome
-    // let body = once(ok::<_, Error>(web::Bytes::from(Ssr::render_to_string(
-    //     &source, "SSR", None,
-    // ))));
-
+    let js = Ssr::new(source, "SSR");
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(Ssr::render_to_string(&source, "SSR", None))
+        .body(js.render_to_string(None))
 }
