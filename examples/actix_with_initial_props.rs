@@ -3,7 +3,7 @@ use std::fs::read_to_string;
 
 use actix_files as fs;
 
-use ssr_rs::Ssr;
+use ssr_rs::SSREnvironment;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

@@ -1,14 +1,12 @@
-
-pub struct SSREnvironment<'a> {
-    function: *mut v8::Local<'a, v8::Function>,
-    scope: *mut v8::ContextScope<'a, v8::HandleScope<'a>>,
-    context: *mut v8::Local<'a, v8::Context>,
-    handle_scope: *mut v8::HandleScope<'a, ()>,
-    isolate: *mut v8::OwnedIsolate,
+pub struct SSREnvironment {
+    source_code: String,
+    entry_point: String,
+    root_export: String,
+    isolate: v8::OwnedIsolate,
 }
 
-impl SSREnvironment<'_> {
-    pub fn init() {
+impl SSREnvironment {
+    fn init() {
         lazy_static! {
             static ref INIT_PLATFORM: () = {
                 //Initialize a new V8 platform
@@ -21,94 +19,71 @@ impl SSREnvironment<'_> {
         lazy_static::initialize(&INIT_PLATFORM);
     }
 
-    pub fn new(source: &str, entry_point: &str, root_export: &str) -> Self {
-        // @todo: Add safety explanation.
-
+    pub fn new(source_code: &str, entry_point: &str, root_export: &str) -> Self {
+        Self::init();
+        
         // The isolate represents an isolated instance of the v8 engine
         // Object from one isolate must not be used in other isolates.
-        let isolate: *mut _ = Box::leak(Box::new(v8::Isolate::new(Default::default())));
-
-        // A stack-allocated class that governs a number of local handles.
-        let handle_scope: *mut _ =
-            Box::leak(Box::new(v8::HandleScope::new(unsafe { &mut *isolate })));
-
-        // A sandboxed execution context with its own set of built-in objects and functions.
-        let context: *mut _ = Box::leak(Box::new(v8::Context::new(unsafe { &mut *handle_scope })));
-
-        // Stack-allocated class which sets the execution context for all operations executed within a local scope.
-        let scope: *mut _ = Box::leak(Box::new(v8::ContextScope::new(
-            unsafe { &mut *handle_scope },
-            unsafe { *context },
-        )));
-
-        let scope_borrow = unsafe { &mut *scope };
-
-        let code: *mut _ = Box::leak(Box::new(v8::String::new(
-            scope_borrow,
-            // We add the "entry_point" to the end of the file so
-            // we can get the value of the Webpack bundle as output
-            // when the script is run. See: "object" below which
-            // refers to the output of the script.
-            &format!("{};{}", source, entry_point),
-        )
-        .expect("Invalid JS: Strings are needed")));
-
-        let script: *mut _ = Box::leak(Box::new(
-            v8::Script::compile(scope_borrow, unsafe { *code }, None)
-                .expect("Invalid JS: There aren't runnable scripts"),
-        ));
-
-        let script_exports: *mut _ =
-            Box::leak(Box::new(unsafe { *script }.run(scope_borrow).expect(
-                "Invalid JS: Missing entry point. Is the bundle exported as a variable?",
-            )));
-
-        let object: *mut _ = Box::leak(Box::new(unsafe { *script_exports }
-            .to_object(scope_borrow)
-            .expect("Invalid JS: entry_point not found. Are you sure you used the right value for entry_point?")));
-
-        let root_export_v8: *mut _ = Box::leak(Box::new(v8::String::new(scope_borrow, root_export)
-            .expect("Failed to allocate string.")
-            .into()));
-
-        let function: *mut _ = Box::leak(Box::new(
-            unsafe { &mut *object }
-                .get(scope_borrow, unsafe { *root_export_v8 })
-                .expect("Invalid JS: Failed to find root export function."),
-        ));
-
-        let function_value = unsafe { *function };
-        let function: *mut v8::Local<v8::Function> =
-            unsafe { &mut v8::Local::<v8::Function>::cast(function_value) };
+        let isolate = v8::Isolate::new(Default::default());
 
         SSREnvironment {
-            function,
-            scope,
-            context,
-            handle_scope,
+            source_code: String::from(source_code),
+            entry_point: String::from(entry_point),
+            root_export: String::from(root_export),
             isolate,
         }
     }
 
-    pub fn render(&mut self, params: &str) -> Option<String> {
-        // @todo: Add safety explanation.
-        let scope = unsafe { &mut *self.scope };
-        let function = unsafe { &mut *self.function };
+    pub fn render(&mut self, params: &str) -> String {
+        let mut handle_scope = v8::HandleScope::new(&mut self.isolate);
 
-        let params = v8::String::new(scope, params).expect("Failed to allocate params string.");
-        let undefined = v8::undefined(scope);
+        // A sandboxed execution context with its own set of built-in objects and functions.
+        let context = v8::Context::new(&mut handle_scope);
+
+        // Stack-allocated class which sets the execution context for all operations executed within a local scope.
+        let mut scope = v8::ContextScope::new(&mut handle_scope, context);
+
+        let code = v8::String::new(
+            &mut scope,
+            // We add the "entry_point" to the end of the file so
+            // we can get the value of the Webpack bundle as output
+            // when the script is run. See: "object" below which
+            // refers to the output of the script.
+            &format!("{};{}", self.source_code, self.entry_point),
+        )
+        .expect("Invalid JS: Strings are needed");
+
+        let script = v8::Script::compile(&mut scope, code, None)
+            .expect("Invalid JS: There aren't runnable scripts");
+
+        let script_exports = script
+            .run(&mut scope)
+            .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
+
+        let object = script_exports
+            .to_object(&mut scope)
+            .expect("Invalid JS: entry_point not found. Are you sure you used the right value for entry_point?");
+
+        let root_export_v8 = v8::String::new(&mut scope, &self.root_export)
+            .expect("Failed to allocate string.")
+            .into();
+
+        let function = unsafe {
+            &mut v8::Local::<v8::Function>::cast(
+                object
+                    .get(&mut scope, root_export_v8)
+                    .expect("Invalid JS: Failed to find root export function."),
+            )
+        };
+
+        let params =
+            v8::String::new(&mut scope, params).expect("Failed to allocate params string.");
+        let undefined = v8::undefined(&mut scope);
         let result = function
-            .call(scope, undefined.into(), &[params.into()])
+            .call(&mut scope, undefined.into(), &[params.into()])
             .expect("Failed to call function.");
 
-        Some(result.to_rust_string_lossy(scope))
-    }
-}
-
-impl Drop for SSREnvironment<'_> {
-    fn drop(&mut self) {
-        // @todo: Drop fields in order.
-        todo!();
+        result.to_rust_string_lossy(&mut scope)
     }
 }
 

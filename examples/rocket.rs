@@ -2,16 +2,13 @@
 extern crate rocket;
 use rocket::fs::FileServer;
 use rocket::response::content;
-use ssr_rs::Ssr;
-use std::fs::read_to_string;
+use ssr_rs::SSREnvironment;
 
 #[get("/")]
 fn index() -> content::RawHtml<String> {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    let mut env = SSREnvironment::new(&std::fs::read_to_string("./client/dist/ssr/index.js").unwrap(), "SSR", "Index");
 
-    let js = Ssr::new(source, "SSR");
-
-    content::RawHtml(js.render_to_string(None))
+    content::RawHtml(env.render(""))
 }
 
 #[launch]

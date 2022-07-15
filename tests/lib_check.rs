@@ -1,5 +1,3 @@
-use ssr_rs::Ssr;
-
 #[test]
 #[should_panic]
 fn incorrect_entry_point() {
