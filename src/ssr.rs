@@ -21,7 +21,7 @@ impl SSREnvironment {
 
     pub fn new(source_code: &str, entry_point: &str, root_export: &str) -> Self {
         Self::init();
-        
+
         // The isolate represents an isolated instance of the v8 engine
         // Object from one isolate must not be used in other isolates.
         let isolate = v8::Isolate::new(Default::default());

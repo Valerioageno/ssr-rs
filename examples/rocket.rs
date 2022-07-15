@@ -6,7 +6,11 @@ use ssr_rs::SSREnvironment;
 
 #[get("/")]
 fn index() -> content::RawHtml<String> {
-    let mut env = SSREnvironment::new(&std::fs::read_to_string("./client/dist/ssr/index.js").unwrap(), "SSR", "Index");
+    let mut env = SSREnvironment::new(
+        &std::fs::read_to_string("./client/dist/ssr/index.js").unwrap(),
+        "SSR",
+        "Index",
+    );
 
     content::RawHtml(env.render(""))
 }
