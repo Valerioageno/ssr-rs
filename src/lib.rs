@@ -80,4 +80,4 @@
 extern crate lazy_static;
 mod ssr;
 
-pub use ssr::Ssr;
+pub use ssr::SSREnvironment;
