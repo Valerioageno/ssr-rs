@@ -1,5 +1,7 @@
 use actix_files as fs;
-use actix_web::{get, http::StatusCode, middleware::Logger, /*web,*/ App, HttpResponse, HttpServer};
+use actix_web::{
+    get, http::StatusCode, middleware::Logger, /*web,*/ App, HttpResponse, HttpServer,
+};
 use std::fs::read_to_string;
 
 // use ssr_rs::SSREnvironment;

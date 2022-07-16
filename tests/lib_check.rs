@@ -48,22 +48,15 @@ fn render_simple_html() {
 
 #[test]
 fn render_from_struct_instance() {
-    let mut env = SSREnvironment::new(
-        &r##"var SSR = {x: () => "<html></html>"};"##,
-        "SSR",
-        "x"
-    );
+    let mut env = SSREnvironment::new(&r##"var SSR = {x: () => "<html></html>"};"##, "SSR", "x");
 
     assert_eq!(env.render(""), "<html></html>");
-    assert_eq!(
-        env.render(r#"{"Hello world"}"#),
-        "<html></html>"
-    );
+    assert_eq!(env.render(r#"{"Hello world"}"#), "<html></html>");
 
     let mut env = SSREnvironment::new(
         r##"var SSR = {x: () => "I don't accept params"};"##,
         "SSR",
-        "x"
+        "x",
     );
 
     assert_eq!(env.render(""), "I don't accept params");
