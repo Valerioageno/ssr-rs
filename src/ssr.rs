@@ -58,7 +58,7 @@ impl SSREnvironment {
         let script = v8::script_compiler::compile(
             &mut scope,
             v8::script_compiler::Source::new(code, None),
-            if self.script_cache == false {
+            if !self.script_cache {
                 // self.script_cache = true;
                 v8::script_compiler::CompileOptions::NoCompileOptions
             } else {
