@@ -1,14 +1,15 @@
 #[allow(unused_imports)]
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ssr_rs::Ssr;
-use std::fs::read_to_string;
+use ssr_rs::SSREnvironment;
 
 pub fn bench_one_shot_render_no_params(c: &mut Criterion) {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    let mut env = SSREnvironment::new(
+        &std::fs::read_to_string("./client/dist/ssr/index.js").unwrap(),
+        "SSR",
+        "Index",
+    );
 
-    c.bench_function("render_to_string_no_params", |b| {
-        b.iter(|| Ssr::one_shot_render(source.clone(), "SSR", None))
-    });
+    c.bench_function("render_to_string_no_params", |b| b.iter(|| env.render("")));
 }
 
 pub fn bench_one_shot_render_with_params(c: &mut Criterion) {
@@ -20,10 +21,14 @@ pub fn bench_one_shot_render_with_params(c: &mut Criterion) {
         ]
     }"##;
 
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    let mut env = SSREnvironment::new(
+        &std::fs::read_to_string("./client/dist/ssr/index.js").unwrap(),
+        "SSR",
+        "Index",
+    );
 
     c.bench_function("render_to_string_with_params", |b| {
-        b.iter(|| Ssr::one_shot_render(source.clone(), "SSR", Some(&mock_props)))
+        b.iter(|| env.render(&mock_props))
     });
 }
 

@@ -48,6 +48,9 @@ rocket = "0.5.0-rc.2"
 criterion = "0.3.4"
 env_logger = "0.9.0"
 
+# Multi-threading dependencies
+# object-pool = "0.5.4"
+
 [[bench]]
 name = "benchmark"
 path = "benches/benchmark.rs"

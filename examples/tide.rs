@@ -1,4 +1,4 @@
-use ssr_rs::Ssr;
+use ssr_rs::SSREnvironment;
 use std::fs::read_to_string;
 use tide::{Request, Response};
 
@@ -15,9 +15,8 @@ async fn main() -> tide::Result<()> {
 
 async fn return_html(_req: Request<()>) -> tide::Result {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    let js = Ssr::new(source, "SSR");
-    let html = js.render_to_string(None);
+    let mut env = SSREnvironment::new(&source, "SSR", "Index");
+    let html = env.render("");
 
     let response = Response::builder(200)
         .body(html)

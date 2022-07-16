@@ -3,7 +3,7 @@ use std::fs::read_to_string;
 
 use actix_files as fs;
 
-use ssr_rs::Ssr;
+use ssr_rs::SSREnvironment;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -22,8 +22,7 @@ async fn main() -> std::io::Result<()> {
 #[get("/")]
 async fn index() -> HttpResponse {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    let js = Ssr::new(source, "SSR");
+    let mut env = SSREnvironment::new(&source, "SSR", "Index");
 
     let mock_props = r##"{
         "params": [
@@ -35,5 +34,5 @@ async fn index() -> HttpResponse {
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(js.render_to_string(Some(&mock_props)))
+        .body(env.render(mock_props))
 }
