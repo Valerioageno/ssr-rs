@@ -2,7 +2,7 @@ use actix_files as fs;
 use actix_web::{get, http::StatusCode, middleware::Logger, App, HttpResponse, HttpServer};
 use std::fs::read_to_string;
 
-use ssr_rs::Ssr;
+use ssr_rs::SSREnvironment;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -25,8 +25,8 @@ async fn index() -> HttpResponse {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
     // This is a benchmark example. Please refer to examples/shared_ssr.rs for a better solution.
-    let js = Ssr::new(source, "SSR");
+    let mut env = SSREnvironment::new(&source, "SSR", "Index");
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(js.render_to_string(None))
+        .body(env.render(""))
 }

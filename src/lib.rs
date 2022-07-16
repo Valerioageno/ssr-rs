@@ -15,18 +15,18 @@
 //!
 //!  # Example
 //!
-//! The whole logic is stored inside the <a href="./struct.Ssr.html#method.render_to_string">render_to_string()</a> function.
+//! The whole logic is stored inside the <a href="./struct.SSREnvironment.html#method.render">render()</a> function.
 //!
 //! ```no_run
-//! use ssr_rs::Ssr;
+//! use ssr_rs::SSREnvironment;
 //! use std::fs::read_to_string;
 //!
 //! fn main() {
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let js = Ssr::new(source, "entryPoint");
+//!     let mut env = SSREnvironment::new(&source, "entryPoint", "rootFunction");
 //!
-//!     let html = js.render_to_string(None);
+//!     let html = env.render("");
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
@@ -36,7 +36,7 @@
 //!  # Example with initial props
 //!
 //! ```no_run
-//! use ssr_rs::Ssr;
+//! use ssr_rs::SSREnvironment;
 //! use std::fs::read_to_string;
 //!
 //! fn main() {
@@ -51,30 +51,13 @@
 //!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let js = Ssr::new(source, "entryPoint");
+//!     let mut env = SSREnvironment::new(&source, "entryPoint", "rootFunction");
 //!
-//!     let html = js.render_to_string(Some(&props));
+//!     let html = env.render(props);
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
 //!```
-//! It's also possible just run the logic in a single shot just with Ssr::one_shot_render()
-//!
-//! # Example single shot
-//!
-//! ```no_run
-//! use ssr_rs::Ssr;
-//! use std::fs::read_to_string;
-//!
-//! fn main() {
-//!
-//!     let source = read_to_string("./path/to/build.js").unwrap();
-//!
-//!     let html = Ssr::one_shot_render(source, "entryPoint", None);
-//!
-//!     assert_eq!(html, "<!doctype html><hmtl>...</html>".to_string());
-//! }
-//! ```
 
 #[macro_use]
 extern crate lazy_static;

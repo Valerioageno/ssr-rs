@@ -1,4 +1,5 @@
 pub struct SSREnvironment {
+    script_cache: bool,
     source_code: String,
     entry_point: String,
     root_export: String,
@@ -27,6 +28,7 @@ impl SSREnvironment {
         let isolate = v8::Isolate::new(Default::default());
 
         SSREnvironment {
+            script_cache: false,
             source_code: String::from(source_code),
             entry_point: String::from(entry_point),
             root_export: String::from(root_export),
@@ -53,8 +55,18 @@ impl SSREnvironment {
         )
         .expect("Invalid JS: Strings are needed");
 
-        let script = v8::Script::compile(&mut scope, code, None)
-            .expect("Invalid JS: There aren't runnable scripts");
+        let script = v8::script_compiler::compile(
+            &mut scope,
+            v8::script_compiler::Source::new(code, None),
+            if self.script_cache == false {
+                // self.script_cache = true;
+                v8::script_compiler::CompileOptions::NoCompileOptions
+            } else {
+                v8::script_compiler::CompileOptions::EagerCompile
+            },
+            v8::script_compiler::NoCacheReason::NoReason,
+        )
+        .expect("Invalid JS: There aren't runnable scripts");
 
         let script_exports = script
             .run(&mut scope)
