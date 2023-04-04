@@ -2,7 +2,7 @@ version: 2
 jobs:
   build-and-test:
     docker:
-      - image: cimg/rust:1.57.0-node
+      - image: cimg/rust:1.68.2-node
     environment:
       RUSTFLAGS: "-D warnings"
     steps:
