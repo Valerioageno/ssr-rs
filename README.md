@@ -1,6 +1,5 @@
 # 🚀 Rust server side rendering
 
-[![Valerioageno](https://circleci.com/gh/Valerioageno/ssr-rs.svg?style=svg)](https://github.com/Valerioageno/ssr-rs)
 [![API](https://docs.rs/ssr_rs/badge.svg)](https://docs.rs/ssr_rs)
 [![codecov](https://codecov.io/gh/Valerioageno/ssr-rs/branch/main/graph/badge.svg?token=O0CZIZAR7X)](https://codecov.io/gh/Valerioageno/ssr-rs)
 
