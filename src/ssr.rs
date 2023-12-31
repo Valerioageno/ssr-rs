@@ -107,7 +107,7 @@ impl<'a> Ssr<'a> {
     ) -> HashMap<String, v8::Local<'b, v8::Function>> {
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
-        if let Some(props) = object.get_own_property_names(scope) {
+        if let Some(props) = object.get_own_property_names(scope, Default::default()) {
             fn_map = Some(props)
                 .iter()
                 .enumerate()
