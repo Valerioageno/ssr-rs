@@ -1,121 +1,48 @@
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ssr<'a> {
-    // TODO: Check if better Box<str> instead of String
-    source: String,
-    entry_point: &'a str,
+#[derive(Debug)]
+pub struct Ssr<'s, 'i> {
+    fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
+    scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
 }
 
-impl<'a> Ssr<'a> {
-    /// Create an instance of the Ssr struct instanciate the v8 platform as well.
-    pub fn new(source: String, entry_point: &'a str) -> Self {
-        Self::init_platform();
-
-        Ssr {
-            source,
-            entry_point,
-        }
-    }
-
-    fn init_platform() {
-        lazy_static! {
-          static ref INIT_PLATFORM: () = {
-              //Initialize a new V8 platform
-              let platform = v8::new_default_platform(0, false).make_shared();
-              v8::V8::initialize_platform(platform);
-              v8::V8::initialize();
-          };
-        }
-
-        lazy_static::initialize(&INIT_PLATFORM);
-    }
-
-    /// Evaluates the javascript source code passed as argument and render it as a String.
-    /// Any initial params (if needed) must be passed as JSON.
-    ///
-    /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
-    ///
-    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn one_shot_render(source: String, entry_point: &str, params: Option<&str>) -> String {
-        Self::init_platform();
-
-        Self::render(source, entry_point, params)
-    }
-
-    /// Evaluates the JS source code instanciate in the Ssr struct
-    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn render_to_string(&self, params: Option<&str>) -> String {
-        Self::render(self.source.clone(), self.entry_point, params)
-    }
-
-    fn render(source: String, entry_point: &str, params: Option<&str>) -> String {
-        //The isolate rapresente an isolated instance of the v8 engine
-        //Object from one isolate must not be used in other isolates.
-        let isolate = &mut v8::Isolate::new(Default::default());
-
-        //A stack-allocated class that governs a number of local handles.
-        let handle_scope = &mut v8::HandleScope::new(isolate);
-
-        //A sandboxed execution context with its own set of built-in objects and functions.
+impl<'s, 'i> Ssr<'s, 'i>
+where
+    's: 'i,
+{
+    /// Create a new SSR instance.
+    pub fn from(
+        handle_scope: &'i mut v8::HandleScope<'s, ()>,
+        source: String,
+        entry_point: &str,
+    ) -> Self {
         let context = v8::Context::new(handle_scope);
+        let mut scope = v8::ContextScope::new(handle_scope, context);
 
-        //Stack-allocated class which sets the execution context for all operations executed within a local scope.
-        let scope = &mut v8::ContextScope::new(handle_scope, context);
-
-        let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
+        let code = v8::String::new(&mut scope, &format!("{};{}", source, entry_point))
             .expect("Invalid JS: Strings are needed");
 
-        let script = v8::Script::compile(scope, code, None)
+        let script = v8::Script::compile(&mut scope, code, None)
             .expect("Invalid JS: There aren't runnable scripts");
 
         let exports = script
-            .run(scope)
+            .run(&mut scope)
             .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
 
         let object = exports
-            .to_object(scope)
+            .to_object(&mut scope)
             .expect("Invalid JS: There are no objects");
 
-        let fn_map = Self::create_fn_map(scope, object);
-
-        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
-            Some(s) => s.into(),
-            None => v8::undefined(scope).into(),
-        };
-
-        let undef = v8::undefined(scope).into();
-
-        let mut rendered = String::new();
-
-        for key in fn_map.keys() {
-            let result = fn_map[key].call(scope, undef, &[params]).unwrap();
-
-            let result = result
-                .to_string(scope)
-                .expect("Failed to parse the result to string");
-
-            rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
-        }
-
-        rendered
-    }
-
-    fn create_fn_map<'b>(
-        scope: &mut v8::ContextScope<'b, v8::HandleScope>,
-        object: v8::Local<v8::Object>,
-    ) -> HashMap<String, v8::Local<'b, v8::Function>> {
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
-        if let Some(props) = object.get_own_property_names(scope, Default::default()) {
+        if let Some(props) = object.get_own_property_names(&mut scope, Default::default()) {
             fn_map = Some(props)
                 .iter()
                 .enumerate()
                 .map(|(i, &p)| {
-                    let name = p.get_index(scope, i as u32).unwrap();
+                    let name = p.get_index(&mut scope, i as u32).unwrap();
 
-                    //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
-                    let mut scope = v8::EscapableHandleScope::new(scope);
+                    let mut scope = v8::EscapableHandleScope::new(&mut scope);
 
                     let func = object.get(&mut scope, name).unwrap();
 
@@ -128,10 +55,43 @@ impl<'a> Ssr<'a> {
                         scope.escape(func),
                     )
                 })
+                // TODO: collect directly the values into a map
                 .collect();
         }
 
-        fn_map
+        Ssr { fn_map, scope }
+    }
+
+    /// Execute the Javascript functions and return the result as string.
+    pub fn render_to_string(&mut self, params: Option<&str>) -> String {
+        let params: v8::Local<v8::Value> =
+            match v8::String::new(&mut self.scope, params.unwrap_or("")) {
+                Some(s) => s.into(),
+                None => v8::undefined(&mut self.scope).into(),
+            };
+
+        let undef = v8::undefined(&mut self.scope).into();
+
+        let mut rendered = String::new();
+
+        // TODO: transform this into an iterator
+        for key in self.fn_map.keys() {
+            let result = self.fn_map[key]
+                .call(&mut self.scope, undef, &[params])
+                .unwrap();
+
+            let result = result
+                .to_string(&mut self.scope)
+                .expect("Failed to parse the result to string");
+
+            rendered = format!(
+                "{}{}",
+                rendered,
+                result.to_rust_string_lossy(&mut self.scope)
+            );
+        }
+
+        rendered
     }
 }
 
