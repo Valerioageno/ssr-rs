@@ -10,10 +10,8 @@ fn main() {
     v8::V8::initialize_platform(platform);
     v8::V8::initialize();
 
-    let mut isolate = v8::Isolate::new(v8::CreateParams::default());
-    let mut handle_scope = v8::HandleScope::new(&mut isolate);
+    let mut ssr = Ssr::from(source, "SSR");
 
-    let mut ssr = Ssr::from(&mut handle_scope, source, "SSR");
-
+    println!("{}", ssr.render_to_string(None));
     println!("{}", ssr.render_to_string(None));
 }

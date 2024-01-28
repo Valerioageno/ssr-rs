@@ -2,24 +2,46 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Ssr<'s, 'i> {
+    isolate: *mut v8::OwnedIsolate,
+    handle_scope: *mut v8::HandleScope<'s, ()>,
     fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
     scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
+}
+
+unsafe impl Send for Ssr<'_, '_> {}
+unsafe impl Sync for Ssr<'_, '_> {}
+
+impl Drop for Ssr<'_, '_> {
+    fn drop(&mut self) {
+        self.fn_map.clear();
+        unsafe {
+            let _ = Box::from_raw(self.handle_scope);
+        };
+        unsafe {
+            let _ = Box::from_raw(self.isolate);
+        };
+    }
 }
 
 impl<'s, 'i> Ssr<'s, 'i>
 where
     's: 'i,
 {
+    pub fn create_platform() -> () {
+        let platform = v8::new_default_platform(0, false).make_shared();
+        v8::V8::initialize_platform(platform);
+        v8::V8::initialize();
+    }
     /// Create a new SSR instance.
-    pub fn from(
-        handle_scope: &'i mut v8::HandleScope<'s, ()>,
-        source: String,
-        entry_point: &str,
-    ) -> Self {
-        let context = v8::Context::new(handle_scope);
-        let mut scope = v8::ContextScope::new(handle_scope, context);
+    pub fn from(source: String, entry_point: &str) -> Self {
+        let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
 
-        let code = v8::String::new(&mut scope, &format!("{};{}", source, entry_point))
+        let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
+
+        let context = unsafe { v8::Context::new(&mut *handle_scope) };
+        let mut scope = unsafe { v8::ContextScope::new(&mut *handle_scope, context) };
+
+        let code = v8::String::new(&mut scope, &format!("{source};{entry_point}"))
             .expect("Invalid JS: Strings are needed");
 
         let script = v8::Script::compile(&mut scope, code, None)
@@ -40,11 +62,15 @@ where
                 .iter()
                 .enumerate()
                 .map(|(i, &p)| {
-                    let name = p.get_index(&mut scope, i as u32).unwrap();
+                    let name = p
+                        .get_index(&mut scope, i as u32)
+                        .expect("Failed to get function name");
 
                     let mut scope = v8::EscapableHandleScope::new(&mut scope);
 
-                    let func = object.get(&mut scope, name).unwrap();
+                    let func = object
+                        .get(&mut scope, name)
+                        .expect("Failed to get function from obj");
 
                     let func = unsafe { v8::Local::<v8::Function>::cast(func) };
 
@@ -59,7 +85,16 @@ where
                 .collect();
         }
 
-        Ssr { fn_map, scope }
+        println!("Created struct");
+        println!("{:?}", fn_map);
+        println!("Scope: {:?}", scope);
+
+        Ssr {
+            isolate,
+            handle_scope,
+            fn_map,
+            scope,
+        }
     }
 
     /// Execute the Javascript functions and return the result as string.
@@ -70,15 +105,21 @@ where
                 None => v8::undefined(&mut self.scope).into(),
             };
 
+        println!("Scope: {:?}", self.scope);
+
+        println!("Params: {:?}", params);
+
         let undef = v8::undefined(&mut self.scope).into();
 
         let mut rendered = String::new();
+
+        println!("render_to_string execution");
 
         // TODO: transform this into an iterator
         for key in self.fn_map.keys() {
             let result = self.fn_map[key]
                 .call(&mut self.scope, undef, &[params])
-                .unwrap();
+                .expect("Failed to call function");
 
             let result = result
                 .to_string(&mut self.scope)
@@ -92,25 +133,5 @@ where
         }
 
         rendered
-    }
-}
-
-#[cfg(tests)]
-mod tests {
-
-    #[test]
-    fn check_struct_instance() {
-        let js = Ssr::new(
-            r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
-            "SSR",
-        );
-
-        assert_eq!(
-            js,
-            Ssr {
-                source: r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
-                entry_point: "SSR"
-            }
-        )
     }
 }
