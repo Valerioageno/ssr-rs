@@ -46,8 +46,6 @@ where
 
         let mut scope = unsafe { &mut *scope_ptr };
 
-        println!("Scope: {:?}", scope);
-
         let code = v8::String::new(&mut scope, &format!("{source};{entry_point}"))
             .expect("Invalid JS: Strings are needed");
 

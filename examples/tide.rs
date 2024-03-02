@@ -1,9 +1,21 @@
 use ssr_rs::Ssr;
+use std::cell::RefCell;
 use std::fs::read_to_string;
+use std::time::Instant;
 use tide::{Request, Response};
+
+thread_local! {
+    static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
+            Ssr::from(
+                read_to_string("./client/dist/ssr/index.js").unwrap(),
+                "SSR"
+                )
+            )
+}
 
 #[async_std::main]
 async fn main() -> tide::Result<()> {
+    Ssr::create_platform();
     let mut app = tide::new();
     app.at("/styles/*").serve_dir("client/dist/ssr/styles/")?;
     app.at("/images/*").serve_dir("client/dist/ssr/images/")?;
@@ -14,10 +26,9 @@ async fn main() -> tide::Result<()> {
 }
 
 async fn return_html(_req: Request<()>) -> tide::Result {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    let js = Ssr::new(source, "SSR");
-    let html = js.render_to_string(None);
+    let start = Instant::now();
+    let html = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None));
+    println!("Elapsed: {:?}", start.elapsed());
 
     let response = Response::builder(200)
         .body(html)

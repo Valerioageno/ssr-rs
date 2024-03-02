@@ -39,11 +39,11 @@ tide = "0.16.0"
 async-std = { version = "1.6.0", features = ["attributes"] }
 serde = { version = "1.0", features = ["derive"] }
 
-# Rocket dependencies
-rocket = "0.5.0-rc.2"
-
 # Axum
 axum = "0.7.4"
+
+# Rocket dependencies
+rocket = "0.5.0-rc.2"
 
 env_logger = "0.9.0"
 
@@ -57,20 +57,20 @@ name = "actix"
 path = "examples/actix.rs"
 
 [[example]]
-name = "actix-with-props"
-path = "examples/actix_with_initial_props.rs"
-
-[[example]]
-name = "warp"
-path = "examples/warp.rs"
-
-[[example]]
 name = "tide"
 path = "examples/tide.rs"
 
 [[example]]
+name = "actix-with-props"
+path = "examples/actix_with_initial_props.rs"
+
+[[example]]
 name = "rocket"
 path = "examples/rocket.rs"
+
+[[example]]
+name = "warp"
+path = "examples/warp.rs"
 
 [[example]]
 name = "run"
