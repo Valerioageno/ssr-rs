@@ -1,3 +1,4 @@
+// TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -5,7 +6,7 @@ pub struct Ssr<'s, 'i> {
     isolate: *mut v8::OwnedIsolate,
     handle_scope: *mut v8::HandleScope<'s, ()>,
     fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
-    scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
+    scope: *mut v8::ContextScope<'i, v8::HandleScope<'s>>,
 }
 
 unsafe impl Send for Ssr<'_, '_> {}
@@ -15,9 +16,8 @@ impl Drop for Ssr<'_, '_> {
     fn drop(&mut self) {
         self.fn_map.clear();
         unsafe {
+            let _ = Box::from_raw(self.scope);
             let _ = Box::from_raw(self.handle_scope);
-        };
-        unsafe {
             let _ = Box::from_raw(self.isolate);
         };
     }
@@ -32,6 +32,7 @@ where
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
     }
+
     /// Create a new SSR instance.
     pub fn from(source: String, entry_point: &str) -> Self {
         let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
@@ -39,7 +40,13 @@ where
         let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
 
         let context = unsafe { v8::Context::new(&mut *handle_scope) };
-        let mut scope = unsafe { v8::ContextScope::new(&mut *handle_scope, context) };
+
+        let scope_ptr =
+            unsafe { Box::into_raw(Box::new(v8::ContextScope::new(&mut *handle_scope, context))) };
+
+        let mut scope = unsafe { &mut *scope_ptr };
+
+        println!("Scope: {:?}", scope);
 
         let code = v8::String::new(&mut scope, &format!("{source};{entry_point}"))
             .expect("Invalid JS: Strings are needed");
@@ -66,7 +73,7 @@ where
                         .get_index(&mut scope, i as u32)
                         .expect("Failed to get function name");
 
-                    let mut scope = v8::EscapableHandleScope::new(&mut scope);
+                    let mut scope = v8::EscapableHandleScope::new(scope);
 
                     let func = object
                         .get(&mut scope, name)
@@ -85,51 +92,38 @@ where
                 .collect();
         }
 
-        println!("Created struct");
-        println!("{:?}", fn_map);
-        println!("Scope: {:?}", scope);
-
         Ssr {
             isolate,
             handle_scope,
             fn_map,
-            scope,
+            scope: scope_ptr,
         }
     }
 
     /// Execute the Javascript functions and return the result as string.
     pub fn render_to_string(&mut self, params: Option<&str>) -> String {
-        let params: v8::Local<v8::Value> =
-            match v8::String::new(&mut self.scope, params.unwrap_or("")) {
-                Some(s) => s.into(),
-                None => v8::undefined(&mut self.scope).into(),
-            };
+        let mut scope = unsafe { &mut *self.scope };
 
-        println!("Scope: {:?}", self.scope);
+        let params: v8::Local<v8::Value> = match v8::String::new(&mut scope, params.unwrap_or("")) {
+            Some(s) => s.into(),
+            None => v8::undefined(&mut scope).into(),
+        };
 
-        println!("Params: {:?}", params);
-
-        let undef = v8::undefined(&mut self.scope).into();
+        let undef = v8::undefined(&mut scope).into();
 
         let mut rendered = String::new();
-
-        println!("render_to_string execution");
 
         // TODO: transform this into an iterator
         for key in self.fn_map.keys() {
             let result = self.fn_map[key]
-                .call(&mut self.scope, undef, &[params])
+                .call(&mut scope, undef, &[params])
                 .expect("Failed to call function");
 
             let result = result
-                .to_string(&mut self.scope)
+                .to_string(&mut scope)
                 .expect("Failed to parse the result to string");
 
-            rendered = format!(
-                "{}{}",
-                rendered,
-                result.to_rust_string_lossy(&mut self.scope)
-            );
+            rendered = format!("{}{}", rendered, result.to_rust_string_lossy(&mut scope));
         }
 
         rendered

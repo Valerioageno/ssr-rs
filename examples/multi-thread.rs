@@ -1,26 +1,34 @@
 use ssr_rs::Ssr;
+use std::cell::RefCell;
 use std::fs::read_to_string;
-use std::sync::{Arc, Mutex};
 use std::thread;
-use v8;
+use std::time::Instant;
 
 fn main() {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    Ssr::create_platform();
 
-    let platform = v8::new_default_platform(0, false).make_shared();
-    v8::V8::initialize_platform(platform);
-    v8::V8::initialize();
-
-    let ssr = Arc::new(Mutex::new(Ssr::from(source, "SSR")));
+    thread_local! {
+        static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
+                Ssr::from(
+                    read_to_string("./client/dist/ssr/index.js").unwrap(),
+                    "SSR"
+                    )
+                )
+    }
 
     let threads: Vec<_> = (0..2)
         .map(|i| {
-            let js = Arc::clone(&ssr);
             thread::spawn(move || {
-                let mut executor = js.lock().expect("failed to lock mutex");
                 println!("Thread #{i} started!");
-                println!("result: {}", (*executor).render_to_string(None));
-                println!("Thread #{i} finished!");
+                let start = Instant::now();
+                println!(
+                    "result: {}",
+                    SSR.with(|ssr| ssr.borrow_mut().render_to_string(None))
+                );
+                println!(
+                    "Thread #{i} finished! - Elapsed time: {:?}",
+                    start.elapsed()
+                );
             })
         })
         .collect();
