@@ -47,11 +47,6 @@ rocket = "0.5.0-rc.2"
 
 env_logger = "0.9.0"
 
-[[bench]]
-name = "benchmark"
-path = "benches/benchmark.rs"
-harness = false
-
 [[example]]
 name = "actix"
 path = "examples/actix.rs"
