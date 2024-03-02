@@ -71,16 +71,9 @@ path = "examples/warp.rs"
 name = "run"
 path = "examples/run.rs"
 
-
-[[example]]
-name = "shared"
-path = "examples/shared_ssr.rs"
-
-
 [[example]]
 name = "axum"
 path = "examples/axum.rs"
-
 
 [[example]]
 name = "multi"
