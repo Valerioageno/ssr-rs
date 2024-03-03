@@ -23,13 +23,26 @@ impl<'s, 'i> Ssr<'s, 'i>
 where
     's: 'i,
 {
+    /// Initialize a V8 js engine instance. It's mandatory to call it before
+    /// any call to V8. The Ssr module needs this function call before any other
+    /// operation.
     pub fn create_platform() {
         let platform = v8::new_default_platform(0, false).make_shared();
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
     }
 
-    /// Create a new SSR instance.
+    /// It creates a new SSR instance.
+    ///
+    /// This function is expensive and it should be called as less as possible.
+    ///
+    /// Even though V8 allows multiple threads the Ssr struct created with this call can be accessed by just
+    /// the thread that created it.
+    ///
+    /// Multiple instances are allowed.
+    ///
+    /// See the examples folder for more about using multiple parallel instances for multi-threaded
+    /// execution.
     pub fn from(source: String, entry_point: &str) -> Self {
         let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
 

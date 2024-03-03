@@ -15,16 +15,20 @@
 //!
 //!  # Example
 //!
-//! The whole logic is stored inside the <a href="./struct.Ssr.html#method.render_to_string">render_to_string()</a> function.
+//! To render to string a bundled react project the application should perform the following
+//! calls.
+//!
 //!
 //! ```no_run
 //! use ssr_rs::Ssr;
 //! use std::fs::read_to_string;
 //!
 //! fn main() {
+//!     Ssr::create_platform();
+//!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let js = Ssr::new(source, "entryPoint");
+//!     let mut js = Ssr::from(source, "entryPoint");
 //!
 //!     let html = js.render_to_string(None);
 //!    
@@ -40,6 +44,7 @@
 //! use std::fs::read_to_string;
 //!
 //! fn main() {
+//!     Ssr::create_platform();
 //!
 //!     let props = r##"{
 //!       "params": [
@@ -51,30 +56,13 @@
 //!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let js = Ssr::new(source, "entryPoint");
+//!     let mut js = Ssr::from(source, "entryPoint");
 //!
 //!     let html = js.render_to_string(Some(&props));
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
 //!```
-//! It's also possible just run the logic in a single shot just with Ssr::one_shot_render()
-//!
-//! # Example single shot
-//!
-//! ```no_run
-//! use ssr_rs::Ssr;
-//! use std::fs::read_to_string;
-//!
-//! fn main() {
-//!
-//!     let source = read_to_string("./path/to/build.js").unwrap();
-//!
-//!     let html = Ssr::one_shot_render(source, "entryPoint", None);
-//!
-//!     assert_eq!(html, "<!doctype html><hmtl>...</html>".to_string());
-//! }
-//! ```
 
 mod ssr;
 
