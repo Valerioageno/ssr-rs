@@ -1,12 +1,23 @@
 use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
+use std::cell::RefCell;
 use std::fs::read_to_string;
 
 use actix_files as fs;
 
 use ssr_rs::Ssr;
 
+thread_local! {
+    static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
+            Ssr::from(
+                read_to_string("./client/dist/ssr/index.js").unwrap(),
+                "SSR"
+                )
+            )
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    Ssr::create_platform();
     HttpServer::new(|| {
         App::new()
             .service(fs::Files::new("/styles", "client/dist/ssr/styles/").show_files_listing())
@@ -21,10 +32,6 @@ async fn main() -> std::io::Result<()> {
 
 #[get("/")]
 async fn index() -> HttpResponse {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    let js = Ssr::new(source, "SSR");
-
     let mock_props = r##"{
         "params": [
             "hello",
@@ -35,5 +42,5 @@ async fn index() -> HttpResponse {
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(js.render_to_string(Some(&mock_props)))
+        .body(SSR.with(|ssr| ssr.borrow_mut().render_to_string(Some(mock_props))))
 }

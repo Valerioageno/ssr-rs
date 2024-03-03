@@ -5,5 +5,12 @@ use std::fs::read_to_string;
 fn main() {
     let source = read_to_string("./client/dist/ssr/index.js").unwrap();
 
-    println!("{}", Ssr::one_shot_render(source, "SSR", None))
+    Ssr::create_platform();
+
+    // This takes roughly 40ms
+    let mut ssr = Ssr::from(source, "SSR");
+
+    // This takes roughly 0.5ms
+    println!("{}", ssr.render_to_string(None));
+    println!("{}", ssr.render_to_string(None));
 }

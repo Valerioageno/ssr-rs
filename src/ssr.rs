@@ -1,69 +1,61 @@
+// TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ssr<'a> {
-    // TODO: Check if better Box<str> instead of String
-    source: String,
-    entry_point: &'a str,
+pub struct Ssr<'s, 'i> {
+    isolate: *mut v8::OwnedIsolate,
+    handle_scope: *mut v8::HandleScope<'s, ()>,
+    fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
+    scope: *mut v8::ContextScope<'i, v8::HandleScope<'s>>,
 }
 
-impl<'a> Ssr<'a> {
-    /// Create an instance of the Ssr struct instanciate the v8 platform as well.
-    pub fn new(source: String, entry_point: &'a str) -> Self {
-        Self::init_platform();
+impl Drop for Ssr<'_, '_> {
+    fn drop(&mut self) {
+        self.fn_map.clear();
+        unsafe {
+            let _ = Box::from_raw(self.scope);
+            let _ = Box::from_raw(self.handle_scope);
+            let _ = Box::from_raw(self.isolate);
+        };
+    }
+}
 
-        Ssr {
-            source,
-            entry_point,
-        }
+impl<'s, 'i> Ssr<'s, 'i>
+where
+    's: 'i,
+{
+    /// Initialize a V8 js engine instance. It's mandatory to call it before
+    /// any call to V8. The Ssr module needs this function call before any other
+    /// operation.
+    pub fn create_platform() {
+        let platform = v8::new_default_platform(0, false).make_shared();
+        v8::V8::initialize_platform(platform);
+        v8::V8::initialize();
     }
 
-    fn init_platform() {
-        lazy_static! {
-          static ref INIT_PLATFORM: () = {
-              //Initialize a new V8 platform
-              let platform = v8::new_default_platform(0, false).make_shared();
-              v8::V8::initialize_platform(platform);
-              v8::V8::initialize();
-          };
-        }
-
-        lazy_static::initialize(&INIT_PLATFORM);
-    }
-
-    /// Evaluates the javascript source code passed as argument and render it as a String.
-    /// Any initial params (if needed) must be passed as JSON.
+    /// It creates a new SSR instance.
     ///
-    /// <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples/actix_with_initial_props.rs" target="_blank">Here</a> an useful example of how to use initial params with the actix framework.
+    /// This function is expensive and it should be called as less as possible.
     ///
-    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn one_shot_render(source: String, entry_point: &str, params: Option<&str>) -> String {
-        Self::init_platform();
+    /// Even though V8 allows multiple threads the Ssr struct created with this call can be accessed by just
+    /// the thread that created it.
+    ///
+    /// Multiple instances are allowed.
+    ///
+    /// See the examples folder for more about using multiple parallel instances for multi-threaded
+    /// execution.
+    pub fn from(source: String, entry_point: &str) -> Self {
+        let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
 
-        Self::render(source, entry_point, params)
-    }
+        let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
 
-    /// Evaluates the JS source code instanciate in the Ssr struct
-    /// "enrty_point" is the variable name set from the frontend bundler used. <a href="https://github.com/Valerioageno/ssr-rs/blob/main/client/webpack.ssr.js" target="_blank">Here</a> an example from webpack.
-    pub fn render_to_string(&self, params: Option<&str>) -> String {
-        Self::render(self.source.clone(), self.entry_point, params)
-    }
+        let context = unsafe { v8::Context::new(&mut *handle_scope) };
 
-    fn render(source: String, entry_point: &str, params: Option<&str>) -> String {
-        //The isolate rapresente an isolated instance of the v8 engine
-        //Object from one isolate must not be used in other isolates.
-        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope_ptr =
+            unsafe { Box::into_raw(Box::new(v8::ContextScope::new(&mut *handle_scope, context))) };
 
-        //A stack-allocated class that governs a number of local handles.
-        let handle_scope = &mut v8::HandleScope::new(isolate);
+        let scope = unsafe { &mut *scope_ptr };
 
-        //A sandboxed execution context with its own set of built-in objects and functions.
-        let context = v8::Context::new(handle_scope);
-
-        //Stack-allocated class which sets the execution context for all operations executed within a local scope.
-        let scope = &mut v8::ContextScope::new(handle_scope, context);
-
-        let code = v8::String::new(scope, &format!("{};{}", source, entry_point))
+        let code = v8::String::new(scope, &format!("{source};{entry_point}"))
             .expect("Invalid JS: Strings are needed");
 
         let script = v8::Script::compile(scope, code, None)
@@ -77,34 +69,6 @@ impl<'a> Ssr<'a> {
             .to_object(scope)
             .expect("Invalid JS: There are no objects");
 
-        let fn_map = Self::create_fn_map(scope, object);
-
-        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
-            Some(s) => s.into(),
-            None => v8::undefined(scope).into(),
-        };
-
-        let undef = v8::undefined(scope).into();
-
-        let mut rendered = String::new();
-
-        for key in fn_map.keys() {
-            let result = fn_map[key].call(scope, undef, &[params]).unwrap();
-
-            let result = result
-                .to_string(scope)
-                .expect("Failed to parse the result to string");
-
-            rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
-        }
-
-        rendered
-    }
-
-    fn create_fn_map<'b>(
-        scope: &mut v8::ContextScope<'b, v8::HandleScope>,
-        object: v8::Local<v8::Object>,
-    ) -> HashMap<String, v8::Local<'b, v8::Function>> {
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope, Default::default()) {
@@ -112,12 +76,15 @@ impl<'a> Ssr<'a> {
                 .iter()
                 .enumerate()
                 .map(|(i, &p)| {
-                    let name = p.get_index(scope, i as u32).unwrap();
+                    let name = p
+                        .get_index(scope, i as u32)
+                        .expect("Failed to get function name");
 
-                    //A HandleScope which first allocates a handle in the current scope which will be later filled with the escape value.
                     let mut scope = v8::EscapableHandleScope::new(scope);
 
-                    let func = object.get(&mut scope, name).unwrap();
+                    let func = object
+                        .get(&mut scope, name)
+                        .expect("Failed to get function from obj");
 
                     let func = unsafe { v8::Local::<v8::Function>::cast(func) };
 
@@ -128,29 +95,146 @@ impl<'a> Ssr<'a> {
                         scope.escape(func),
                     )
                 })
+                // TODO: collect directly the values into a map
                 .collect();
         }
 
-        fn_map
+        Ssr {
+            isolate,
+            handle_scope,
+            fn_map,
+            scope: scope_ptr,
+        }
+    }
+
+    /// Execute the Javascript functions and return the result as string.
+    pub fn render_to_string(&mut self, params: Option<&str>) -> String {
+        let scope = unsafe { &mut *self.scope };
+
+        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
+            Some(s) => s.into(),
+            None => v8::undefined(scope).into(),
+        };
+
+        let undef = v8::undefined(scope).into();
+
+        let mut rendered = String::new();
+
+        // TODO: transform this into an iterator
+        for key in self.fn_map.keys() {
+            let result = self.fn_map[key]
+                .call(scope, undef, &[params])
+                .expect("Failed to call function");
+
+            let result = result
+                .to_string(scope)
+                .expect("Failed to parse the result to string");
+
+            rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
+        }
+
+        rendered
     }
 }
 
-#[cfg(tests)]
+#[cfg(test)]
 mod tests {
+    use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn init_test() {
+        INIT.call_once(|| {
+            Ssr::create_platform();
+        })
+    }
 
     #[test]
-    fn check_struct_instance() {
-        let js = Ssr::new(
+    #[should_panic]
+    fn wrong_entry_point() {
+        init_test();
+        let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
+
+        let _ = Ssr::from(source.to_owned(), "IncorrectEntryPoint");
+    }
+
+    #[test]
+    #[should_panic]
+    fn empty_code() {
+        init_test();
+        let source = r##""##;
+
+        let _ = Ssr::from(source.to_owned(), "SSR");
+    }
+
+    #[test]
+    fn pass_param_to_function() {
+        init_test();
+
+        let props = r#"{"Hello world"}"#;
+
+        let accept_params_source =
+            r##"var SSR = {x: (params) => "These are our parameters: " + params};"##.to_string();
+
+        let mut js = Ssr::from(accept_params_source, "SSR");
+        println!("Before render_to_string");
+        let result = js.render_to_string(Some(&props));
+
+        assert_eq!(result, "These are our parameters: {\"Hello world\"}");
+
+        let no_params_source = r##"var SSR = {x: () => "I don't accept params"};"##.to_string();
+
+        let mut js2 = Ssr::from(no_params_source, "SSR");
+        let result2 = js2.render_to_string(Some(&props));
+
+        assert_eq!(result2, "I don't accept params");
+
+        let result3 = js.render_to_string(None);
+
+        assert_eq!(result3, "These are our parameters: ");
+    }
+
+    #[test]
+    fn render_simple_html() {
+        init_test();
+
+        let source = r##"var SSR = {x: () => "<html></html>"};"##.to_string();
+
+        let mut js = Ssr::from(source, "SSR");
+        let html = js.render_to_string(None);
+
+        assert_eq!(html, "<html></html>");
+
+        //Prevent missing semicolon
+        let source2 = r##"var SSR = {x: () => "<html></html>"}"##.to_string();
+
+        let mut js2 = Ssr::from(source2, "SSR");
+        let html2 = js2.render_to_string(None);
+
+        assert_eq!(html2, "<html></html>");
+    }
+
+    #[test]
+    fn render_from_struct_instance() {
+        init_test();
+
+        let mut js = Ssr::from(
             r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
             "SSR",
         );
 
+        assert_eq!(js.render_to_string(None), "<html></html>");
         assert_eq!(
-            js,
-            Ssr {
-                source: r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
-                entry_point: "SSR"
-            }
-        )
+            js.render_to_string(Some(r#"{"Hello world"}"#)),
+            "<html></html>"
+        );
+
+        let mut js2 = Ssr::from(
+            r##"var SSR = {x: () => "I don't accept params"};"##.to_string(),
+            "SSR",
+        );
+
+        assert_eq!(js2.render_to_string(None), "I don't accept params");
     }
 }

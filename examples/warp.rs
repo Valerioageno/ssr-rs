@@ -1,14 +1,29 @@
 #![deny(warnings)]
 use ssr_rs::Ssr;
+use std::cell::RefCell;
 use std::fs::read_to_string;
+use std::time::Instant;
 use warp::{http::Response, Filter};
+
+thread_local! {
+    static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
+            Ssr::from(
+                read_to_string("./client/dist/ssr/index.js").unwrap(),
+                "SSR"
+                )
+            )
+}
 
 #[tokio::main]
 async fn main() {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
+    Ssr::create_platform();
 
-    let js = Ssr::new(source, "SSR");
-    let html = warp::path::end().map(move || Response::builder().body(js.render_to_string(None)));
+    let html = warp::path::end().map(move || {
+        let start = Instant::now();
+        let result = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None));
+        println!("Elapsed: {:?}", start.elapsed());
+        Response::builder().body(result)
+    });
 
     let css = warp::path("styles").and(warp::fs::dir("./client/dist/ssr/styles/"));
     let scripts = warp::path("scripts").and(warp::fs::dir("./client/dist/client/"));

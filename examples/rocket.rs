@@ -3,19 +3,31 @@ extern crate rocket;
 use rocket::fs::FileServer;
 use rocket::response::content;
 use ssr_rs::Ssr;
+use std::cell::RefCell;
 use std::fs::read_to_string;
+use std::time::Instant;
+
+thread_local! {
+    static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
+            Ssr::from(
+                read_to_string("./client/dist/ssr/index.js").unwrap(),
+                "SSR"
+                )
+            )
+}
 
 #[get("/")]
 fn index() -> content::RawHtml<String> {
-    let source = read_to_string("./client/dist/ssr/index.js").unwrap();
-
-    let js = Ssr::new(source, "SSR");
-
-    content::RawHtml(js.render_to_string(None))
+    let start = Instant::now();
+    let result = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None));
+    println!("Elapsed: {:?}", start.elapsed());
+    content::RawHtml(result)
 }
 
 #[launch]
 fn rocket() -> _ {
+    Ssr::create_platform();
+
     rocket::build()
         .mount("/styles", FileServer::from("./client/dist/ssr/styles"))
         .mount("/scripts", FileServer::from("./client/dist/client/"))
