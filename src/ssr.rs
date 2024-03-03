@@ -127,3 +127,105 @@ where
         rendered
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    pub fn init_test() {
+        INIT.call_once(|| {
+            Ssr::create_platform();
+        })
+    }
+
+    #[test]
+    #[should_panic]
+    fn wrong_entry_point() {
+        init_test();
+        let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
+
+        let _ = Ssr::from(source.to_owned(), "IncorrectEntryPoint");
+    }
+
+    #[test]
+    #[should_panic]
+    fn empty_code() {
+        init_test();
+        let source = r##""##;
+
+        let _ = Ssr::from(source.to_owned(), "SSR");
+    }
+
+    #[test]
+    fn pass_param_to_function() {
+        init_test();
+
+        let props = r#"{"Hello world"}"#;
+
+        let accept_params_source =
+            r##"var SSR = {x: (params) => "These are our parameters: " + params};"##.to_string();
+
+        let mut js = Ssr::from(accept_params_source, "SSR");
+        println!("Before render_to_string");
+        let result = js.render_to_string(Some(&props));
+
+        assert_eq!(result, "These are our parameters: {\"Hello world\"}");
+
+        let no_params_source = r##"var SSR = {x: () => "I don't accept params"};"##.to_string();
+
+        let mut js2 = Ssr::from(no_params_source, "SSR");
+        let result2 = js2.render_to_string(Some(&props));
+
+        assert_eq!(result2, "I don't accept params");
+
+        let result3 = js.render_to_string(None);
+
+        assert_eq!(result3, "These are our parameters: ");
+    }
+
+    #[test]
+    fn render_simple_html() {
+        init_test();
+
+        let source = r##"var SSR = {x: () => "<html></html>"};"##.to_string();
+
+        let mut js = Ssr::from(source, "SSR");
+        let html = js.render_to_string(None);
+
+        assert_eq!(html, "<html></html>");
+
+        //Prevent missing semicolon
+        let source2 = r##"var SSR = {x: () => "<html></html>"}"##.to_string();
+
+        let mut js2 = Ssr::from(source2, "SSR");
+        let html2 = js2.render_to_string(None);
+
+        assert_eq!(html2, "<html></html>");
+    }
+
+    #[test]
+    fn render_from_struct_instance() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
+            "SSR",
+        );
+
+        assert_eq!(js.render_to_string(None), "<html></html>");
+        assert_eq!(
+            js.render_to_string(Some(r#"{"Hello world"}"#)),
+            "<html></html>"
+        );
+
+        let mut js2 = Ssr::from(
+            r##"var SSR = {x: () => "I don't accept params"};"##.to_string(),
+            "SSR",
+        );
+
+        assert_eq!(js2.render_to_string(None), "I don't accept params");
+    }
+}
