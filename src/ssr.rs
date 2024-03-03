@@ -1,16 +1,12 @@
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 
-#[derive(Debug)]
 pub struct Ssr<'s, 'i> {
     isolate: *mut v8::OwnedIsolate,
     handle_scope: *mut v8::HandleScope<'s, ()>,
     fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
     scope: *mut v8::ContextScope<'i, v8::HandleScope<'s>>,
 }
-
-unsafe impl Send for Ssr<'_, '_> {}
-unsafe impl Sync for Ssr<'_, '_> {}
 
 impl Drop for Ssr<'_, '_> {
     fn drop(&mut self) {
