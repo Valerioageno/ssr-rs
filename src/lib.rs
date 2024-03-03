@@ -74,7 +74,7 @@
 //!
 //!  For this reason parallel computation is a better choice. Following actix-web setup:
 //!
-//! ```rust
+//! ```no_run
 //! use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
 //! use std::cell::RefCell;
 //! use std::fs::read_to_string;
