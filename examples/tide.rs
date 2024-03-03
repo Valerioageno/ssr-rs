@@ -9,7 +9,7 @@ thread_local! {
             Ssr::from(
                 read_to_string("./client/dist/ssr/index.js").unwrap(),
                 "SSR"
-                )
+                ).unwrap()
             )
 }
 
@@ -31,7 +31,7 @@ async fn return_html(_req: Request<()>) -> tide::Result {
     println!("Elapsed: {:?}", start.elapsed());
 
     let response = Response::builder(200)
-        .body(html)
+        .body(html.unwrap())
         .content_type(tide::http::mime::HTML)
         .build();
 

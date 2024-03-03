@@ -9,7 +9,7 @@ thread_local! {
             Ssr::from(
                 read_to_string("./client/dist/ssr/index.js").unwrap(),
                 "SSR"
-                )
+                ).unwrap()
             )
 }
 
@@ -23,7 +23,7 @@ fn main() {
                 let start = Instant::now();
                 println!(
                     "result: {}",
-                    SSR.with(|ssr| ssr.borrow_mut().render_to_string(None))
+                    SSR.with(|ssr| ssr.borrow_mut().render_to_string(None).unwrap())
                 );
                 println!(
                     "Thread #{i} finished! - Elapsed time: {:?}",

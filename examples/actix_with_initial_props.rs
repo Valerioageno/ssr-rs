@@ -11,7 +11,7 @@ thread_local! {
             Ssr::from(
                 read_to_string("./client/dist/ssr/index.js").unwrap(),
                 "SSR"
-                )
+                ).unwrap()
             )
 }
 
@@ -42,5 +42,5 @@ async fn index() -> HttpResponse {
 
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(SSR.with(|ssr| ssr.borrow_mut().render_to_string(Some(mock_props))))
+        .body(SSR.with(|ssr| ssr.borrow_mut().render_to_string(Some(mock_props)).unwrap()))
 }

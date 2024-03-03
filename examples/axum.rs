@@ -9,7 +9,7 @@ thread_local! {
             Ssr::from(
                 read_to_string("./client/dist/ssr/index.js").unwrap(),
                 "SSR"
-                )
+                ).unwrap()
             )
 }
 
@@ -29,5 +29,5 @@ async fn root() -> Html<String> {
     let start = Instant::now();
     let result = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None));
     println!("Elapsed: {:?}", start.elapsed());
-    Html(result)
+    Html(result.unwrap())
 }

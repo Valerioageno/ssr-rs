@@ -10,7 +10,7 @@ thread_local! {
             Ssr::from(
                 read_to_string("./client/dist/ssr/index.js").unwrap(),
                 "SSR"
-                )
+                ).unwrap()
             )
 }
 
@@ -22,7 +22,7 @@ async fn main() {
         let start = Instant::now();
         let result = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None));
         println!("Elapsed: {:?}", start.elapsed());
-        Response::builder().body(result)
+        Response::builder().body(result.unwrap())
     });
 
     let css = warp::path("styles").and(warp::fs::dir("./client/dist/ssr/styles/"));
