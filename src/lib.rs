@@ -28,9 +28,9 @@
 //!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let mut js = Ssr::from(source, "entryPoint");
+//!     let mut js = Ssr::from(source, "entryPoint").unwrap();
 //!
-//!     let html = js.render_to_string(None);
+//!     let html = js.render_to_string(None).unwrap();
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
@@ -56,9 +56,9 @@
 //!
 //!     let source = read_to_string("./path/to/build.js").unwrap();
 //!
-//!     let mut js = Ssr::from(source, "entryPoint");
+//!     let mut js = Ssr::from(source, "entryPoint").unwrap();
 //!
-//!     let html = js.render_to_string(Some(&props));
+//!     let html = js.render_to_string(Some(&props)).unwrap();
 //!    
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }

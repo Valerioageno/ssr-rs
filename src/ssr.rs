@@ -1,6 +1,7 @@
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Ssr<'s, 'i> {
     isolate: *mut v8::OwnedIsolate,
     handle_scope: *mut v8::HandleScope<'s, ()>,
@@ -43,7 +44,7 @@ where
     ///
     /// See the examples folder for more about using multiple parallel instances for multi-threaded
     /// execution.
-    pub fn from(source: String, entry_point: &str) -> Self {
+    pub fn from(source: String, entry_point: &str) -> Result<Self, &'static str> {
         let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
 
         let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
@@ -55,60 +56,78 @@ where
 
         let scope = unsafe { &mut *scope_ptr };
 
-        let code = v8::String::new(scope, &format!("{source};{entry_point}"))
-            .expect("Invalid JS: Strings are needed");
+        let code = match v8::String::new(scope, &format!("{source};{entry_point}")) {
+            Some(val) => val,
+            None => return Err("Invalid JS: Strings are needed"),
+        };
 
-        let script = v8::Script::compile(scope, code, None)
-            .expect("Invalid JS: There aren't runnable scripts");
+        let script = match v8::Script::compile(scope, code, None) {
+            Some(val) => val,
+            None => return Err("Invalid JS: There aren't runnable scripts"),
+        };
 
-        let exports = script
-            .run(scope)
-            .expect("Invalid JS: Missing entry point. Is the bundle exported as a variable?");
+        let exports = match script.run(scope) {
+            Some(val) => val,
+            None => {
+                return Err(
+                    "Invalid JS: Missing entry point. Is the bundle exported as a variable?",
+                )
+            }
+        };
 
-        let object = exports
-            .to_object(scope)
-            .expect("Invalid JS: There are no objects");
+        let object = match exports.to_object(scope) {
+            Some(val) => val,
+            None => return Err("Invalid JS: There are no objects"),
+        };
 
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope, Default::default()) {
-            fn_map = Some(props)
+            fn_map = match Some(props)
                 .iter()
                 .enumerate()
-                .map(|(i, &p)| {
-                    let name = p
-                        .get_index(scope, i as u32)
-                        .expect("Failed to get function name");
+                .map(
+                    |(i, &p)| -> Result<(String, v8::Local<v8::Function>), &'static str> {
+                        let name = match p.get_index(scope, i as u32) {
+                            Some(val) => val,
+                            None => return Err("Failed to get function name"),
+                        };
 
-                    let mut scope = v8::EscapableHandleScope::new(scope);
+                        let mut scope = v8::EscapableHandleScope::new(scope);
 
-                    let func = object
-                        .get(&mut scope, name)
-                        .expect("Failed to get function from obj");
+                        let func = match object.get(&mut scope, name) {
+                            Some(val) => val,
+                            None => return Err("Failed to get function from obj"),
+                        };
 
-                    let func = unsafe { v8::Local::<v8::Function>::cast(func) };
+                        let func = unsafe { v8::Local::<v8::Function>::cast(func) };
 
-                    (
-                        name.to_string(&mut scope)
-                            .unwrap()
-                            .to_rust_string_lossy(&mut scope),
-                        scope.escape(func),
-                    )
-                })
+                        let fn_name = match name.to_string(&mut scope) {
+                            Some(val) => val.to_rust_string_lossy(&mut scope),
+                            None => return Err("Failed to find function name"),
+                        };
+
+                        Ok((fn_name, scope.escape(func)))
+                    },
+                )
                 // TODO: collect directly the values into a map
-                .collect();
+                .collect()
+            {
+                Ok(val) => val,
+                Err(err) => return Err(err),
+            }
         }
 
-        Ssr {
+        Ok(Ssr {
             isolate,
             handle_scope,
             fn_map,
             scope: scope_ptr,
-        }
+        })
     }
 
     /// Execute the Javascript functions and return the result as string.
-    pub fn render_to_string(&mut self, params: Option<&str>) -> String {
+    pub fn render_to_string(&mut self, params: Option<&str>) -> Result<String, &'static str> {
         let scope = unsafe { &mut *self.scope };
 
         let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
@@ -122,18 +141,20 @@ where
 
         // TODO: transform this into an iterator
         for key in self.fn_map.keys() {
-            let result = self.fn_map[key]
-                .call(scope, undef, &[params])
-                .expect("Failed to call function");
+            let result = match self.fn_map[key].call(scope, undef, &[params]) {
+                Some(val) => val,
+                None => return Err("Failed to call function"),
+            };
 
-            let result = result
-                .to_string(scope)
-                .expect("Failed to parse the result to string");
+            let result = match result.to_string(scope) {
+                Some(val) => val,
+                None => return Err("Failed to parse the result to string"),
+            };
 
             rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
         }
 
-        rendered
+        Ok(rendered)
     }
 }
 
@@ -151,21 +172,28 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn wrong_entry_point() {
         init_test();
         let source = r##"var entryPoint = {x: () => "<html></html>"};"##;
 
-        let _ = Ssr::from(source.to_owned(), "IncorrectEntryPoint");
+        let res = Ssr::from(source.to_owned(), "IncorrectEntryPoint");
+
+        assert_eq!(
+            res.unwrap_err(),
+            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+        );
     }
 
     #[test]
-    #[should_panic]
     fn empty_code() {
         init_test();
         let source = r##""##;
 
-        let _ = Ssr::from(source.to_owned(), "SSR");
+        let res = Ssr::from(source.to_owned(), "SSR");
+        assert_eq!(
+            res.unwrap_err(),
+            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+        );
     }
 
     #[test]
@@ -177,20 +205,20 @@ mod tests {
         let accept_params_source =
             r##"var SSR = {x: (params) => "These are our parameters: " + params};"##.to_string();
 
-        let mut js = Ssr::from(accept_params_source, "SSR");
+        let mut js = Ssr::from(accept_params_source, "SSR").unwrap();
         println!("Before render_to_string");
-        let result = js.render_to_string(Some(&props));
+        let result = js.render_to_string(Some(&props)).unwrap();
 
         assert_eq!(result, "These are our parameters: {\"Hello world\"}");
 
         let no_params_source = r##"var SSR = {x: () => "I don't accept params"};"##.to_string();
 
-        let mut js2 = Ssr::from(no_params_source, "SSR");
-        let result2 = js2.render_to_string(Some(&props));
+        let mut js2 = Ssr::from(no_params_source, "SSR").unwrap();
+        let result2 = js2.render_to_string(Some(&props)).unwrap();
 
         assert_eq!(result2, "I don't accept params");
 
-        let result3 = js.render_to_string(None);
+        let result3 = js.render_to_string(None).unwrap();
 
         assert_eq!(result3, "These are our parameters: ");
     }
@@ -201,16 +229,16 @@ mod tests {
 
         let source = r##"var SSR = {x: () => "<html></html>"};"##.to_string();
 
-        let mut js = Ssr::from(source, "SSR");
-        let html = js.render_to_string(None);
+        let mut js = Ssr::from(source, "SSR").unwrap();
+        let html = js.render_to_string(None).unwrap();
 
         assert_eq!(html, "<html></html>");
 
         //Prevent missing semicolon
         let source2 = r##"var SSR = {x: () => "<html></html>"}"##.to_string();
 
-        let mut js2 = Ssr::from(source2, "SSR");
-        let html2 = js2.render_to_string(None);
+        let mut js2 = Ssr::from(source2, "SSR").unwrap();
+        let html2 = js2.render_to_string(None).unwrap();
 
         assert_eq!(html2, "<html></html>");
     }
@@ -222,19 +250,21 @@ mod tests {
         let mut js = Ssr::from(
             r##"var SSR = {x: () => "<html></html>"};"##.to_string(),
             "SSR",
-        );
+        )
+        .unwrap();
 
-        assert_eq!(js.render_to_string(None), "<html></html>");
+        assert_eq!(js.render_to_string(None).unwrap(), "<html></html>");
         assert_eq!(
-            js.render_to_string(Some(r#"{"Hello world"}"#)),
+            js.render_to_string(Some(r#"{"Hello world"}"#)).unwrap(),
             "<html></html>"
         );
 
         let mut js2 = Ssr::from(
             r##"var SSR = {x: () => "I don't accept params"};"##.to_string(),
             "SSR",
-        );
+        )
+        .unwrap();
 
-        assert_eq!(js2.render_to_string(None), "I don't accept params");
+        assert_eq!(js2.render_to_string(None).unwrap(), "I don't accept params");
     }
 }
