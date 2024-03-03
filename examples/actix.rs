@@ -39,7 +39,7 @@ async fn index() -> HttpResponse {
     let start = Instant::now();
     let result = SSR.with(|ssr| ssr.borrow_mut().render_to_string(None).unwrap());
     println!("Elapsed: {:?}", start.elapsed());
-    // This is a benchmark example. Please refer to examples/shared_ssr.rs for a better solution.
+
     HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
         .body(result)
