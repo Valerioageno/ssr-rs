@@ -9,6 +9,8 @@ It use an embedded version of the v8 javascript engine (<a href="https://github.
 
 Currently it works with Webpack bundler v5.65.0.
 
+> Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the benchmark results.
+
 ## Getting started
 
 Add this to your `Cargo.toml`:

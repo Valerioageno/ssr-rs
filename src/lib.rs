@@ -7,6 +7,9 @@
 //!
 //! Currently it works with Webpack bundler v4.44.2.
 //!
+//! > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the
+//! benchmarks results.
+//!
 //!  # Getting started
 //! ```toml
 //! [dependencies]

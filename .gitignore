@@ -4,6 +4,6 @@ Cargo.lock
 client2/
 .vscode/
 
-client/dist
+dist
 process.yml
 tarpaulin*
