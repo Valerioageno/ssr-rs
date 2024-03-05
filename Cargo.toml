@@ -78,3 +78,7 @@ path = "examples/axum.rs"
 [[example]]
 name = "multi"
 path = "examples/multi-thread.rs"
+
+[[example]]
+name = "webpack"
+path = "examples/webpack-react/server.rs"
