@@ -51,6 +51,7 @@ use ssr_rs::Ssr;
 use std::fs::read_to_string;
 
 fn main() {
+    Ssr::create_platform();
 
     let props = r##"{
         "params": [
