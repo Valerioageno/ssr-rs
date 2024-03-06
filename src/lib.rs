@@ -5,7 +5,7 @@
 //!
 //! It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 //!
-//! Currently it works with Webpack bundler v4.44.2.
+//! Currently it works with Webpack bundler v5.65.0
 //!
 //! > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the
 //! benchmarks results.
