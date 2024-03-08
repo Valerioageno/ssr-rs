@@ -186,7 +186,7 @@ mod tests {
 
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+            "Invalid JS: Execute your script with d8 to debug"
         );
     }
 
@@ -198,7 +198,7 @@ mod tests {
         let res = Ssr::from(source.to_owned(), "SSR");
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+            "Invalid JS: Execute your script with d8 to debug"
         );
     }
 
