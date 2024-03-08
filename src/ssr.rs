@@ -203,6 +203,15 @@ mod tests {
     }
 
     #[test]
+    fn executes_iife_source() {
+        init_test();
+        let source = r##"(() => ({x: () => 'rendered HTML'}))()"##;
+
+        let mut js = Ssr::from(source.to_owned(), "").unwrap();
+        assert_eq!(js.render_to_string(None).unwrap(), "rendered HTML");
+    }
+
+    #[test]
     fn pass_param_to_function() {
         init_test();
 
