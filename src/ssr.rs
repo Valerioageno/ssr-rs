@@ -68,16 +68,16 @@ where
 
         let exports = match script.run(scope) {
             Some(val) => val,
-            None => {
-                return Err(
-                    "Invalid JS: Missing entry point. Is the bundle exported as a variable?",
-                )
-            }
+            None => return Err("Invalid JS: Execute your script with d8 to debug"),
         };
 
         let object = match exports.to_object(scope) {
             Some(val) => val,
-            None => return Err("Invalid JS: There are no objects"),
+            None => {
+                return Err(
+                    "Invalid JS: The script does not return any object after being executed",
+                )
+            }
         };
 
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();

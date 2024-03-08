@@ -14,16 +14,15 @@ export default {
   target: 'web',
   entry: path.resolve(__dirname, './src/ssrEntry.tsx'),
   output: {
+    path: path.resolve(__dirname, buildDirectory),
     publicPath: '',
     globalObject: 'this',
-    path: path.resolve(__dirname, buildDirectory),
-    // render_to_string entry point name!!
+    filename: 'index.js',
+    //iife: true,
     library: {
-      type: 'module',
+      type: 'var',
       name: 'SSR',
     },
-    libraryTarget: 'var',
-    filename: 'index.js',
   },
   resolve: {
     fallback: { fs: false, path: false },

@@ -80,5 +80,9 @@ name = "multi"
 path = "examples/multi-thread.rs"
 
 [[example]]
+name = "vite-react"
+path = "examples/vite-react/server.rs"
+
+[[example]]
 name = "webpack"
 path = "examples/webpack-react/server.rs"
