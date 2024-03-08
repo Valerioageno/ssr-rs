@@ -42,6 +42,12 @@ where
     ///
     /// Multiple instances are allowed.
     ///
+    /// Entry point is the JS element that the bundler exposes. It has to be an empty string in
+    /// case the bundle is exported as IIFE.
+    ///
+    /// Check the examples <a href="https://github.com/Valerioageno/ssr-rs/tree/main/examples/vite-react">vite-react</a> (for the IIFE example) and
+    /// <a href="https://github.com/Valerioageno/ssr-rs/tree/main/examples/webpack-react">webpack-react</a> (for the bundle exported as variable).
+    ///
     /// See the examples folder for more about using multiple parallel instances for multi-threaded
     /// execution.
     pub fn from(source: String, entry_point: &str) -> Result<Self, &'static str> {

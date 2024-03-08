@@ -2,7 +2,6 @@ import path from 'path';
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { fileURLToPath } from 'url';
-import webpack from 'webpack';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +20,7 @@ export default {
     //iife: true,
     library: {
       type: 'var',
+      // Entry point
       name: 'SSR',
     },
   },
