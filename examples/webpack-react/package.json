@@ -81,7 +81,7 @@
     "parcel": "^2.0.1",
     "ts-jest": "^27.1.1",
     "typescript": "^5.3.3",
-    "webpack": "^5.65.0",
+    "webpack": "^5.90.3",
     "webpack-cli": "^4.9.1"
   },
   "prettier": {

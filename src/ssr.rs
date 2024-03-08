@@ -42,6 +42,12 @@ where
     ///
     /// Multiple instances are allowed.
     ///
+    /// Entry point is the JS element that the bundler exposes. It has to be an empty string in
+    /// case the bundle is exported as IIFE.
+    ///
+    /// Check the examples <a href="https://github.com/Valerioageno/ssr-rs/tree/main/examples/vite-react">vite-react</a> (for the IIFE example) and
+    /// <a href="https://github.com/Valerioageno/ssr-rs/tree/main/examples/webpack-react">webpack-react</a> (for the bundle exported as variable).
+    ///
     /// See the examples folder for more about using multiple parallel instances for multi-threaded
     /// execution.
     pub fn from(source: String, entry_point: &str) -> Result<Self, &'static str> {
@@ -68,16 +74,16 @@ where
 
         let exports = match script.run(scope) {
             Some(val) => val,
-            None => {
-                return Err(
-                    "Invalid JS: Missing entry point. Is the bundle exported as a variable?",
-                )
-            }
+            None => return Err("Invalid JS: Execute your script with d8 to debug"),
         };
 
         let object = match exports.to_object(scope) {
             Some(val) => val,
-            None => return Err("Invalid JS: There are no objects"),
+            None => {
+                return Err(
+                    "Invalid JS: The script does not return any object after being executed",
+                )
+            }
         };
 
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
@@ -180,7 +186,7 @@ mod tests {
 
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+            "Invalid JS: Execute your script with d8 to debug"
         );
     }
 
@@ -192,8 +198,17 @@ mod tests {
         let res = Ssr::from(source.to_owned(), "SSR");
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Missing entry point. Is the bundle exported as a variable?"
+            "Invalid JS: Execute your script with d8 to debug"
         );
+    }
+
+    #[test]
+    fn executes_iife_source() {
+        init_test();
+        let source = r##"(() => ({x: () => 'rendered HTML'}))()"##;
+
+        let mut js = Ssr::from(source.to_owned(), "").unwrap();
+        assert_eq!(js.render_to_string(None).unwrap(), "rendered HTML");
     }
 
     #[test]

@@ -2,7 +2,6 @@ import path from 'path';
 import { CleanWebpackPlugin } from 'clean-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import { fileURLToPath } from 'url';
-import webpack from 'webpack';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,16 +13,16 @@ export default {
   target: 'web',
   entry: path.resolve(__dirname, './src/ssrEntry.tsx'),
   output: {
+    path: path.resolve(__dirname, buildDirectory),
     publicPath: '',
     globalObject: 'this',
-    path: path.resolve(__dirname, buildDirectory),
-    // render_to_string entry point name!!
+    filename: 'index.js',
+    //iife: true,
     library: {
-      type: 'module',
+      type: 'var',
+      // Entry point
       name: 'SSR',
     },
-    libraryTarget: 'var',
-    filename: 'index.js',
   },
   resolve: {
     fallback: { fs: false, path: false },
