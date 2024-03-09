@@ -3,9 +3,9 @@
 [![API](https://docs.rs/ssr_rs/badge.svg)](https://docs.rs/ssr_rs)
 [![codecov](https://codecov.io/gh/Valerioageno/ssr-rs/branch/main/graph/badge.svg?token=O0CZIZAR7X)](https://codecov.io/gh/Valerioageno/ssr-rs)
 
-The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
+The crate aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
-It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
+It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 
 Currently it works with latest [Vite](https://vitejs.dev/), latest [Webpack](https://webpack.js.org/) and [React 17](https://react.dev/) - Check the examples folder.
 
@@ -42,7 +42,21 @@ fn main() {
 }
 ```
 
-There are included examples with the most famous server frameworks and a default frontend react app made using `npx create-react-app` and the typescript `--template` flag. Check <a href="https://github.com/Valerioageno/ssr-rs/tree/main/client">here</a> the example ReactJS template.
+## What is the "entryPoint"?
+
+The `entryPoint` is the function that returns an object with one or more properties that are functions that when called return the rendered result. 
+
+In case the bundled JS is an IIFE the `entryPoint` is an empty string.
+
+```javascript
+// IIFE example | bundle.js -> See vite-react example
+(() => ({ renderToStringFn: (props) => "<html></html>" }))() // The entryPoint is an empty string
+```
+
+```javascript
+// Varible example | bundle.js -> See webpack-react example
+var SSR = () => ({renderToStringFn: (props) => "<html></html>"}) // SSR is the entry point
+```
 
 ## Example with initial props
 
@@ -80,7 +94,7 @@ Even though the V8 engine allows accessing the same `isolate` from different thr
 1. rusty_v8 library have not implemented yet the V8 Locker API. Accessing Ssr struct from a different thread will make the V8 engine to panic.
 2. Rendering HTML does not need shared state across threads.
 
-For this reason parallel computation is a better choice. Following actix-web setup:
+For the reasons above parallel computation is a better choice. Following actix-web setup:
 
 ```rust
 use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
@@ -125,6 +139,13 @@ async fn index() -> HttpResponse {
 ## Contributing
 
 Any helps or suggestions will be appreciated.
+
+Known TODOs: 
+- Add examples with other rust backend frameworks
+- Add examples with other frontend frameworks (i.e. vue, quik, solid, svelte)
+- Add benchmark setup to test against Deno and Bun
+- Explore support for V8 snapshots
+- Explore js copilation to WASM (i.e. [javy](https://github.com/bytecodealliance/javy))
 
 ## License
 
