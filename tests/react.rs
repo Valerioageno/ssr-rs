@@ -22,3 +22,16 @@ fn renders_react_17_exported_as_iife() {
 
     assert_eq!(html, "<div></div>");
 }
+
+#[test]
+fn renders_react_18_exported_as_iife() {
+    prepare();
+
+    let source = read_to_string("./tests/assets/react-18-iife.js").unwrap();
+
+    let mut js = Ssr::from(source, "").unwrap();
+
+    let html = js.render_to_string(None).unwrap();
+
+    assert_eq!(html, "<div></div>");
+}
