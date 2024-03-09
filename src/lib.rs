@@ -38,18 +38,34 @@
 //! }
 //! ```
 //! ## What is the "entryPoint"?
-//! The `entryPoint` is the function that returns an object with one or more properties that are functions that when called return the rendered result.
-//! In case the bundled JS is an IIFE the `entryPoint` is an empty string.
-
+//!
+//! The `entryPoint` could be either:
+//! - the function that returns an object with one or more properties that are functions that when called return the rendered result
+//! - the object itself with one or more properties that are functions that when called return the rendered result
+//!
+//! In case the bundled JS is an IIFE or the plain object the `entryPoint` is an empty string.
+//!
 //! ```javascript
 //! // IIFE example | bundle.js -> See vite-react example
 //! (() => ({ renderToStringFn: (props) => "<html></html>" }))() // The entryPoint is an empty string
 //! ```
 
 //! ```javascript
-//! // Varible example | bundle.js -> See webpack-react example
-//! var SSR = () => ({renderToStringFn: (props) => "<html></html>"}) // SSR is the entry point
+//! // Plain object example | bundle.js
+//! ({renderToStringFn: (props) => "<html></html>"}); // The entryPoint is an empty string
 //! ```
+
+//! ```javascript
+//! // IIFE varible example | bundle.js -> See webpack-react example
+//! var SSR = (() => ({renderToStringFn: (props) => "<html></html>"}))() // SSR is the entry point
+//! ```
+
+//! ```javascript
+//! // Varible example | bundle.js -> See webpack-react example
+//! var SSR = {renderToStringFn: (props) => "<html></html>"}; // SSR is the entry point
+//! ```
+//!
+//! > The exports results are managed by the bundler directly.
 //!
 //! # Example with initial props
 //!
