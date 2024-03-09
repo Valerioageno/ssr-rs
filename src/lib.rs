@@ -1,9 +1,9 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/Valerioageno/ssr-rs/main/logo.png")]
 
 //!
-//! The project aims to enable server side rendering on rust servers in the simplest and lightest way possible.
+//! The crate aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 //!
-//! It use an embedded version of the v8 javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
+//! It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 //!
 //! Currently it works with latest [Vite](https://vitejs.dev/), latest [Webpack](https://webpack.js.org/) and [React 17](https://react.dev/) - Check the examples folder.
 //!
@@ -21,7 +21,6 @@
 //! To render to string a bundled react project the application should perform the following
 //! calls.
 //!
-//!
 //! ```no_run
 //! use ssr_rs::Ssr;
 //! use std::fs::read_to_string;
@@ -38,9 +37,21 @@
 //!     assert_eq!(html, "<!doctype html><html>...</html>".to_string());
 //! }
 //! ```
-//! Check how to use it with actix, rocket, warp and other frameworks <a href="https://github.com/Valerioageno/ssr-rs/tree/main/examples" target="_blank">here</a>.
+//! ## What is the "entryPoint"?
+//! The `entryPoint` is the function that returns an object with one or more properties that are functions that when called return the rendered result.
+//! In case the bundled JS is an IIFE the `entryPoint` is an empty string.
+
+//! ```javascript
+//! // IIFE example | bundle.js -> See vite-react example
+//! (() => ({ renderToStringFn: (props) => "<html></html>" }))() // The entryPoint is an empty string
+//! ```
+
+//! ```javascript
+//! // Varible example | bundle.js -> See webpack-react example
+//! var SSR = () => ({renderToStringFn: (props) => "<html></html>"}) // SSR is the entry point
+//! ```
 //!
-//!  # Example with initial props
+//! # Example with initial props
 //!
 //! ```no_run
 //! use ssr_rs::Ssr;
@@ -75,7 +86,7 @@
 //! 1. rusty_v8 library have not implemented yet the V8 Locker API. Accessing Ssr struct from a different thread will make the V8 engine to panic.
 //! 2. Rendering HTML does not need shared state across threads.
 //!
-//!  For this reason parallel computation is a better choice. Following actix-web setup:
+//! For the reasons above parallel computation is a better choice. Following actix-web setup:
 //!
 //! ```no_run
 //! use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
