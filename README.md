@@ -70,7 +70,7 @@ var SSR = (() => ({renderToStringFn: (props) => "<html></html>"}))() // SSR is t
 var SSR = {renderToStringFn: (props) => "<html></html>"}; // SSR is the entry point
 ```
 
-> The exports results are managed by the bundler directly.
+> The export results are managed by the bundler directly.
 
 ## Example with initial props
 
