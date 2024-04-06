@@ -11,8 +11,8 @@ export const Index = (params: string | undefined) => {
   <html>
     <head>
       <title>React SSR</title>
-      <link rel="stylesheet" href="./styles/ssr.css">
-      <script async src="./scripts/bundle.js"></script>
+      <link rel="stylesheet" href="./assets/index.css">
+      <script async src="./assets/index.js"></script>
     </head>
     <body>
       <div id="root">${app}</div>

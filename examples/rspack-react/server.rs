@@ -1,3 +1,4 @@
+use actix_files as fs;
 use actix_web::{get, http::StatusCode, App, HttpResponse, HttpServer};
 use std::cell::RefCell;
 use std::fs::read_to_string;
@@ -18,10 +19,14 @@ thread_local! {
 async fn main() -> std::io::Result<()> {
     Ssr::create_platform();
 
-    HttpServer::new(|| App::new().service(index))
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .service(fs::Files::new("/assets", "dist/client/").show_files_listing())
+            .service(index)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 }
 
 #[get("/")]

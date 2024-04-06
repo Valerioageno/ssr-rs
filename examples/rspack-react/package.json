@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "NODE_ENV=development rspack serve",
-    "build": "NODE_ENV=production rspack build",
+	"build": "pnpm build:client && pnpm build:ssr",
+    "build:client": "NODE_ENV=production rspack build",
     "build:ssr": "rspack build -c ./ssr.config.js"
   },
   "dependencies": {
