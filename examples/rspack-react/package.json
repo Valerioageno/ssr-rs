@@ -1,0 +1,26 @@
+{
+  "name": "rspack-react-ts-starter",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "NODE_ENV=development rspack serve",
+	"build": "pnpm build:client && pnpm build:ssr",
+    "build:client": "NODE_ENV=production rspack build",
+    "build:ssr": "rspack build -c ./ssr.config.js"
+  },
+  "dependencies": {
+    "fast-text-encoding": "^1.0.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@rspack/cli": "0.5.9",
+    "@rspack/core": "0.5.9",
+    "@rspack/plugin-react-refresh": "0.5.9",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "file-loader": "^6.2.0",
+    "react-refresh": "^0.14.0",
+    "ts-loader": "^9.5.1"
+  }
+}

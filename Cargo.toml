@@ -86,3 +86,7 @@ path = "examples/vite-react/server.rs"
 [[example]]
 name = "webpack"
 path = "examples/webpack-react/server.rs"
+
+[[example]]
+name = "rspack-react"
+path = "examples/rspack-react/server.rs"
