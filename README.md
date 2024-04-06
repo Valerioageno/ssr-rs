@@ -17,7 +17,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ssr_rs = "0.4.0"
+ssr_rs = "0.4.1"
 ```
 
 ## Example
