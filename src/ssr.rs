@@ -147,10 +147,23 @@ where
 
         // TODO: transform this into an iterator
         for key in self.fn_map.keys() {
-            let result = match self.fn_map[key].call(scope, undef, &[params]) {
+            let mut result = match self.fn_map[key].call(scope, undef, &[params]) {
                 Some(val) => val,
                 None => return Err("Failed to call function"),
             };
+
+            if result.is_promise() {
+                let promise = match v8::Local::<v8::Promise>::try_from(result) {
+                    Ok(val) => val,
+                    Err(_) => return Err("Failed to cast main function to promise"),
+                };
+
+                while promise.state() == v8::PromiseState::Pending {
+                    scope.perform_microtask_checkpoint();
+                }
+
+                result = promise.result(scope);
+            }
 
             let result = match result.to_string(scope) {
                 Some(val) => val,
@@ -281,5 +294,63 @@ mod tests {
         .unwrap();
 
         assert_eq!(js2.render_to_string(None).unwrap(), "I don't accept params");
+    }
+
+    #[test]
+    fn entry_point_is_async() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = {x: async () => "<html></html>"};"##.to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        assert_eq!(js.render_to_string(None).unwrap(), "<html></html>");
+        assert_eq!(
+            js.render_to_string(Some(r#"{"Hello world"}"#)).unwrap(),
+            "<html></html>"
+        );
+    }
+
+    #[test]
+    fn entry_point_is_async_with_params() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = {x: async (params) => "These are our parameters: " + params};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        assert_eq!(
+            js.render_to_string(Some(r#"{"Hello world"}"#)).unwrap(),
+            "These are our parameters: {\"Hello world\"}"
+        );
+    }
+
+    #[test]
+    fn entry_point_is_async_with_nested_async() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"
+            const asyncFn = async () => {
+                return "Hello world"
+            }
+            var SSR = {x: async () => {
+                return await asyncFn()
+            }};
+            "##
+            .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        assert_eq!(
+            js.render_to_string(Some(r#"{"Hello world"}"#)).unwrap(),
+            "Hello world"
+        );
     }
 }
