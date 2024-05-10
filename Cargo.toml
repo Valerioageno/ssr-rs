@@ -1,6 +1,6 @@
 [package]
 name = "ssr_rs"
-version = "0.5.0"
+version = "0.5.1"
 authors = ["Valerio <valerioageno@yahoo.it>"]
 edition = "2021"
 description = "Server side rendering with the v8 engine for parse and evaluate the javascript code"
@@ -22,7 +22,7 @@ name = "ssr_rs"
 path = "src/lib.rs"
 
 [dependencies]
-v8= "0.91.0"
+v8= "0.91.1"
 
 [dev-dependencies]
 
