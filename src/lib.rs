@@ -15,7 +15,7 @@
 //!  # Getting started
 //! ```toml
 //! [dependencies]
-//! ssr_rs = "0.5.2"
+//! ssr_rs = "0.5.3"
 //! ```
 //!
 //!  # Example
