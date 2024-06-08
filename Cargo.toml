@@ -22,7 +22,7 @@ name = "ssr_rs"
 path = "src/lib.rs"
 
 [dependencies]
-v8= "0.92.0"
+v8= "0.93.0"
 
 [dev-dependencies]
 
