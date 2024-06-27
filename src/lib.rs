@@ -13,9 +13,8 @@
 //! benchmarks results.
 //!
 //!  # Getting started
-//! ```toml
-//! [dependencies]
-//! ssr_rs = "0.5.4"
+//! ```bash
+//! cargo add ssr_rs
 //! ```
 //!
 //!  # Example
