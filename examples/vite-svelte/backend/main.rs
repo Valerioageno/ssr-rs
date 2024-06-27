@@ -1,8 +1,8 @@
 use salvo::prelude::*;
+use ssr_rs::Ssr;
 use std::cell::RefCell;
 use std::fs::read_to_string;
 use std::path::Path;
-use ssr_rs::Ssr;
 
 thread_local! {
     static SSR: RefCell<Ssr<'static, 'static>> = RefCell::new(
@@ -47,7 +47,7 @@ async fn index(res: &mut Response) {
 
     let html = result["html"].as_str().unwrap_or("");
     let css = result["css"].as_str().unwrap_or("");
-    
+
     let full_html = format!(
         r#"<!DOCTYPE html>
         <html>
@@ -69,10 +69,11 @@ async fn index(res: &mut Response) {
 async fn main() {
     Ssr::create_platform();
     let router = Router::new()
-        .push(Router::with_path("/client/<**path>")
-            .get(StaticDir::new(["./dist/client"])))
-        .push(Router::with_path("/client/assets/<**path>")
-            .get(StaticDir::new(["./dist/assets/client"])))
+        .push(Router::with_path("/client/<**path>").get(StaticDir::new(["./dist/client"])))
+        .push(
+            Router::with_path("/client/assets/<**path>")
+                .get(StaticDir::new(["./dist/assets/client"])),
+        )
         .push(Router::with_path("/").get(index));
 
     let acceptor = TcpListener::new("127.0.0.1:8080").bind().await;
