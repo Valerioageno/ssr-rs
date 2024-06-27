@@ -5,17 +5,16 @@
 //!
 //! It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 //!
-//! > ℹ️ This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in server side rendering.
+//! ℹ️ **This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in server side rendering.**
 //!
-//! Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/) and [React 18](https://react.dev/) - Check the examples folder.
+//! Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 4](https://svelte.dev/) - Check the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
 //!
 //! > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the
 //! benchmarks results.
 //!
 //!  # Getting started
-//! ```toml
-//! [dependencies]
-//! ssr_rs = "0.5.4"
+//! ```bash
+//! cargo add ssr_rs
 //! ```
 //!
 //!  # Example
@@ -58,12 +57,12 @@
 //! ```
 
 //! ```javascript
-//! // IIFE varible example | bundle.js -> See webpack-react example
+//! // IIFE variable example | bundle.js -> See webpack-react example
 //! var SSR = (() => ({renderToStringFn: (props) => "<html></html>"}))() // SSR is the entry point
 //! ```
 
 //! ```javascript
-//! // Varible example | bundle.js -> See webpack-react example
+//! // Variable example | bundle.js -> See webpack-react example
 //! var SSR = {renderToStringFn: (props) => "<html></html>"}; // SSR is the entry point
 //! ```
 //!

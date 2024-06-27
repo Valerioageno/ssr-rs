@@ -7,9 +7,9 @@ The crate aims to enable server side rendering on rust servers in the simplest a
 
 It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
 
-> ℹ️ This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in server side rendering.
+ℹ️ **This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in server side rendering.**
 
-Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/) and [React 18](https://react.dev/) - Check the examples folder.
+Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 4](https://svelte.dev/) - Check the `examples/` folder.
 
 > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the benchmark results.
 
@@ -17,9 +17,8 @@ Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.j
 
 Add this to your `Cargo.toml`:
 
-```toml
-[dependencies]
-ssr_rs = "0.5.4"
+```bash
+cargo add ssr_rs
 ```
 
 ## Example
@@ -63,12 +62,12 @@ In case the bundled JS is an IIFE or the plain object the `entryPoint` is an emp
 ```
 
 ```javascript
-// IIFE varible example | bundle.js -> See webpack-react example
+// IIFE variable example | bundle.js -> See webpack-react example
 var SSR = (() => ({renderToStringFn: (props) => "<html></html>"}))() // SSR is the entry point
 ```
 
 ```javascript
-// Varible example | bundle.js -> See webpack-react example
+// Variable example | bundle.js -> See webpack-react example
 var SSR = {renderToStringFn: (props) => "<html></html>"}; // SSR is the entry point
 ```
 
@@ -158,7 +157,7 @@ Any helps or suggestions will be appreciated.
 
 Known TODOs: 
 - Add examples with other rust backend frameworks
-- Add examples with other frontend frameworks (i.e. vue, quik, solid, svelte)
+- Add examples with other frontend frameworks (i.e. vue, quik, solid)
 - Add benchmark setup to test against Deno and Bun
 - Explore support for V8 snapshots
 - Explore js copilation to WASM (i.e. [javy](https://github.com/bytecodealliance/javy))
