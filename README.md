@@ -6,8 +6,8 @@
 The crate aims to enable server side rendering on rust servers in the simplest and lightest way possible.
 
 It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a href="https://github.com/denoland/rusty_v8" target="_blank">rusty_v8</a>) to parse and evaluate a built bundle file and return a string with the rendered html.
-
-ℹ️ **This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in server side rendering.**
+> [!NOTE]
+>  This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in SSR.
 
 Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 4](https://svelte.dev/) - Check the `examples/` folder.
 
