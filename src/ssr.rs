@@ -106,14 +106,12 @@ where
                             None => return Err("Failed to get function from obj"),
                         };
 
-                        let func = unsafe { v8::Local::<v8::Function>::cast(func) };
-
                         let fn_name = match name.to_string(&mut scope) {
                             Some(val) => val.to_rust_string_lossy(&mut scope),
                             None => return Err("Failed to find function name"),
                         };
 
-                        Ok((fn_name, scope.escape(func)))
+                        Ok((fn_name, scope.escape(func.cast())))
                     },
                 )
                 // TODO: collect directly the values into a map
