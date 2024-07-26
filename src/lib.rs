@@ -10,7 +10,7 @@
 //! Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 4](https://svelte.dev/) - Check the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
 //!
 //! > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the
-//! benchmarks results.
+//! > benchmarks results.
 //!
 //!  # Getting started
 //! ```bash
