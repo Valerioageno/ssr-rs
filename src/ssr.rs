@@ -55,7 +55,7 @@ where
 
         let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
 
-        let context = unsafe { v8::Context::new(&mut *handle_scope) };
+        let context = unsafe { v8::Context::new(&mut *handle_scope, Default::default()) };
 
         let scope_ptr =
             unsafe { Box::into_raw(Box::new(v8::ContextScope::new(&mut *handle_scope, context))) };
