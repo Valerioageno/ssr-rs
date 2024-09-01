@@ -1,5 +1,19 @@
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
+use std::fmt;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SsrError {
+    InvalidJs(&'static str),
+    FailedToParseJs(&'static str),
+    FailedJsExecution(&'static str),
+}
+
+impl fmt::Display for SsrError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Debug)]
 pub struct Ssr<'s, 'i> {
@@ -50,7 +64,7 @@ where
     ///
     /// See the examples folder for more about using multiple parallel instances for multi-threaded
     /// execution.
-    pub fn from(source: String, entry_point: &str) -> Result<Self, &'static str> {
+    pub fn from(source: String, entry_point: &str) -> Result<Self, SsrError> {
         let isolate = Box::into_raw(Box::new(v8::Isolate::new(v8::CreateParams::default())));
 
         let handle_scope = unsafe { Box::into_raw(Box::new(v8::HandleScope::new(&mut *isolate))) };
@@ -64,25 +78,25 @@ where
 
         let code = match v8::String::new(scope, &format!("{source};{entry_point}")) {
             Some(val) => val,
-            None => return Err("Invalid JS: Strings are needed"),
+            None => return Err(SsrError::InvalidJs("Strings are needed")),
         };
 
         let script = match v8::Script::compile(scope, code, None) {
             Some(val) => val,
-            None => return Err("Invalid JS: There aren't runnable scripts"),
+            None => return Err(SsrError::InvalidJs("There aren't runnable scripts")),
         };
 
         let exports = match script.run(scope) {
             Some(val) => val,
-            None => return Err("Invalid JS: Execute your script with d8 to debug"),
+            None => return Err(SsrError::InvalidJs("Execute your script with d8 to debug")),
         };
 
         let object = match exports.to_object(scope) {
             Some(val) => val,
             None => {
-                return Err(
-                    "Invalid JS: The script does not return any object after being executed",
-                )
+                return Err(SsrError::InvalidJs(
+                    "The script does not return any object after being executed",
+                ))
             }
         };
 
@@ -93,22 +107,34 @@ where
                 .iter()
                 .enumerate()
                 .map(
-                    |(i, &p)| -> Result<(String, v8::Local<v8::Function>), &'static str> {
+                    |(i, &p)| -> Result<(String, v8::Local<v8::Function>), SsrError> {
                         let name = match p.get_index(scope, i as u32) {
                             Some(val) => val,
-                            None => return Err("Failed to get function name"),
+                            None => {
+                                return Err(SsrError::FailedToParseJs(
+                                    "Failed to get function name",
+                                ))
+                            }
                         };
 
                         let mut scope = v8::EscapableHandleScope::new(scope);
 
                         let func = match object.get(&mut scope, name) {
                             Some(val) => val,
-                            None => return Err("Failed to get function from obj"),
+                            None => {
+                                return Err(SsrError::FailedToParseJs(
+                                    "Failed to get function from obj",
+                                ))
+                            }
                         };
 
                         let fn_name = match name.to_string(&mut scope) {
                             Some(val) => val.to_rust_string_lossy(&mut scope),
-                            None => return Err("Failed to find function name"),
+                            None => {
+                                return Err(SsrError::FailedToParseJs(
+                                    "Failed to find function name",
+                                ))
+                            }
                         };
 
                         Ok((fn_name, scope.escape(func.cast())))
@@ -131,7 +157,7 @@ where
     }
 
     /// Execute the Javascript functions and return the result as string.
-    pub fn render_to_string(&mut self, params: Option<&str>) -> Result<String, &'static str> {
+    pub fn render_to_string(&mut self, params: Option<&str>) -> Result<String, SsrError> {
         let scope = unsafe { &mut *self.scope };
 
         let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
@@ -147,13 +173,17 @@ where
         for key in self.fn_map.keys() {
             let mut result = match self.fn_map[key].call(scope, undef, &[params]) {
                 Some(val) => val,
-                None => return Err("Failed to call function"),
+                None => return Err(SsrError::FailedJsExecution("Failed to call function")),
             };
 
             if result.is_promise() {
                 let promise = match v8::Local::<v8::Promise>::try_from(result) {
                     Ok(val) => val,
-                    Err(_) => return Err("Failed to cast main function to promise"),
+                    Err(_) => {
+                        return Err(SsrError::FailedJsExecution(
+                            "Failed to cast main function to promise",
+                        ))
+                    }
                 };
 
                 while promise.state() == v8::PromiseState::Pending {
@@ -165,7 +195,11 @@ where
 
             let result = match result.to_string(scope) {
                 Some(val) => val,
-                None => return Err("Failed to parse the result to string"),
+                None => {
+                    return Err(SsrError::FailedJsExecution(
+                        "Failed to parse the result to string",
+                    ))
+                }
             };
 
             rendered = format!("{}{}", rendered, result.to_rust_string_lossy(scope));
@@ -197,7 +231,7 @@ mod tests {
 
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Execute your script with d8 to debug"
+            SsrError::InvalidJs("Execute your script with d8 to debug")
         );
     }
 
@@ -209,7 +243,7 @@ mod tests {
         let res = Ssr::from(source.to_owned(), "SSR");
         assert_eq!(
             res.unwrap_err(),
-            "Invalid JS: Execute your script with d8 to debug"
+            SsrError::InvalidJs("Execute your script with d8 to debug")
         );
     }
 
@@ -233,14 +267,14 @@ mod tests {
 
         let mut js = Ssr::from(accept_params_source, "SSR").unwrap();
         println!("Before render_to_string");
-        let result = js.render_to_string(Some(&props)).unwrap();
+        let result = js.render_to_string(Some(props)).unwrap();
 
         assert_eq!(result, "These are our parameters: {\"Hello world\"}");
 
         let no_params_source = r##"var SSR = {x: () => "I don't accept params"};"##.to_string();
 
         let mut js2 = Ssr::from(no_params_source, "SSR").unwrap();
-        let result2 = js2.render_to_string(Some(&props)).unwrap();
+        let result2 = js2.render_to_string(Some(props)).unwrap();
 
         assert_eq!(result2, "I don't accept params");
 
