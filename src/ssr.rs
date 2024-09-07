@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
+/// This enum holds all the possible Ssr error states.
 #[derive(Debug, PartialEq, Eq)]
 pub enum SsrError {
     InvalidJs(&'static str),
@@ -15,6 +16,9 @@ impl fmt::Display for SsrError {
     }
 }
 
+/// This struct holds all the necessary v8 utilities to
+/// execute Javascript code.
+/// It cannot be shared across threads.
 #[derive(Debug)]
 pub struct Ssr<'s, 'i> {
     isolate: *mut v8::OwnedIsolate,
@@ -40,21 +44,19 @@ where
 {
     /// Initialize a V8 js engine instance. It's mandatory to call it before
     /// any call to V8. The Ssr module needs this function call before any other
-    /// operation.
+    /// operation. It cannot be called more than once per process.
     pub fn create_platform() {
         let platform = v8::new_default_platform(0, false).make_shared();
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
     }
 
-    /// It creates a new SSR instance.
+    /// It creates a new SSR instance (multiple instances are allowed).
     ///
     /// This function is expensive and it should be called as less as possible.
     ///
     /// Even though V8 allows multiple threads the Ssr struct created with this call can be accessed by just
     /// the thread that created it.
-    ///
-    /// Multiple instances are allowed.
     ///
     /// Entry point is the JS element that the bundler exposes. It has to be an empty string in
     /// case the bundle is exported as IIFE.
