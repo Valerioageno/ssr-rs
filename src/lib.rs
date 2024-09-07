@@ -145,5 +145,4 @@
 //!```
 mod ssr;
 
-pub use ssr::Ssr;
-pub use ssr::SsrError;
+pub use ssr::{Ssr, SsrError};
