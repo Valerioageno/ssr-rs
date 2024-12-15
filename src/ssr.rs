@@ -8,6 +8,8 @@ pub enum SsrError {
     InvalidJs(&'static str),
     FailedToParseJs(&'static str),
     FailedJsExecution(&'static str),
+    InvalidFunctionName,
+    InvalidFunction,
 }
 
 impl fmt::Display for SsrError {
@@ -156,6 +158,31 @@ where
             fn_map,
             scope: scope_ptr,
         })
+    }
+
+    /// Add a global function to the V8 runtime.
+    /// Any function defined here can be executed within any js scope
+    pub fn add_global_fn(
+        &self,
+        name: &'static str,
+        callback: impl v8::MapFnTo<v8::FunctionCallback>,
+    ) -> Result<(), SsrError> {
+        let scope = unsafe { &mut *self.scope };
+        let ctx = scope.get_current_context();
+        let global = ctx.global(scope);
+
+        let name = match v8::String::new(scope, name) {
+            Some(val) => val,
+            None => return Err(SsrError::InvalidFunctionName),
+        };
+
+        let callback = match v8::Function::new(scope, callback) {
+            Some(val) => val,
+            None => return Err(SsrError::InvalidFunction),
+        };
+        global.set(scope, name.into(), callback.into());
+
+        Ok(())
     }
 
     /// Execute the Javascript functions and return the result as string.
@@ -386,5 +413,44 @@ mod tests {
             js.render_to_string(Some(r#"{"Hello world"}"#)).unwrap(),
             "Hello world"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "FailedJsExecution")]
+    fn it_should_fail_to_call_missing_global_fn() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var testGlobalFn = { globalSumFnCall: () => globalSum(2, 5)};"##.to_string(),
+            "testGlobalFn",
+        )
+        .unwrap();
+
+        assert_eq!(js.render_to_string(None).unwrap(), "7");
+    }
+
+    #[test]
+    fn it_should_call_a_custom_global_fn() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var testGlobalFn = { globalSumFnCall: () => globalSum(2, 5)};"##.to_string(),
+            "testGlobalFn",
+        )
+        .unwrap();
+
+        let global_sum = |scope: &mut v8::HandleScope,
+                          args: v8::FunctionCallbackArguments,
+                          mut rv: v8::ReturnValue| {
+            let first = args.get(0).number_value(scope).unwrap();
+            let second = args.get(1).number_value(scope).unwrap();
+            let sum = first + second;
+            rv.set(v8::Number::new(scope, sum).into());
+        };
+
+        js.add_global_fn("globalSum", global_sum)
+            .expect("Failed to bind global_sum fn");
+
+        assert_eq!(js.render_to_string(None).unwrap(), "7");
     }
 }

@@ -146,3 +146,4 @@
 mod ssr;
 
 pub use ssr::{Ssr, SsrError};
+pub use v8;
