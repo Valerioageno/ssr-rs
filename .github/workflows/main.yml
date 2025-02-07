@@ -9,7 +9,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -17,7 +17,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      
+
       - uses: actions-rs/cargo@v1
         with:
           command: test
@@ -40,16 +40,9 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          components: clippy
-          toolchain: stable
-          override: true
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
 
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -D warnings
+      - run: cargo clippy -- -D warnings
