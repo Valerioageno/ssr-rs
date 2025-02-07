@@ -1,3 +1,4 @@
+#![allow(clippy::question_mark)]
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 use std::fmt;
