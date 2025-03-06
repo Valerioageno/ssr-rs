@@ -108,7 +108,7 @@ where
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope, Default::default()) {
-            fn_map = match Some(props)
+            fn_map = Some(props)
                 .iter()
                 .enumerate()
                 .map(
@@ -146,11 +146,7 @@ where
                     },
                 )
                 // TODO: collect directly the values into a map
-                .collect()
-            {
-                Ok(val) => val,
-                Err(err) => return Err(err),
-            }
+                .collect::<Result<HashMap<_, _>, SsrError>>()?
         }
 
         Ok(Ssr {
