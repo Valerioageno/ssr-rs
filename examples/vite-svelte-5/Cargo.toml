@@ -1,0 +1,16 @@
+[package]
+name = "svelte-salvo-ssr"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "svelte-salvo-ssr"
+path = "backend/main.rs"
+
+[dependencies]
+salvo = { version = "0.68.3", features = ["serve-static"] }
+serde_json = "1.0.118"
+ssr_rs = "0.8.1"
+tokio = { version = "1", features = ["macros"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
