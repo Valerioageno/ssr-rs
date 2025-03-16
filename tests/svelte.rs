@@ -11,7 +11,7 @@ fn prepare() {
 }
 
 #[test]
-fn renders_svelte_exported_as_iife() {
+fn renders_svelte_4_exported_as_iife() {
     prepare();
 
     let source = read_to_string("./tests/assets/svelte-4-iife.js").unwrap();
