@@ -1,12 +1,12 @@
 {
-  "name": "my-vue-app",
+  "name": "vite-svelte",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build --config vite.client.config.js && vite build --config vite.ssr.config.js",
-    "preview": "vite preview"
+    "preview": "cargo run"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
