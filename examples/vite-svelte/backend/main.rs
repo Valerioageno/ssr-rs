@@ -45,22 +45,22 @@ async fn index(res: &mut Response) {
         }
     };
 
-    let html = result["html"].as_str().unwrap_or("");
-    let css = result["css"].as_str().unwrap_or("");
+    let head = result["head"].as_str().unwrap_or("");
+    let body = result["body"].as_str().unwrap_or("");
 
     let full_html = format!(
         r#"<!DOCTYPE html>
         <html>
         <head>
-            <style>{}</style>
             <link rel="stylesheet" href="/client/assets/main.css">
+            {}
         </head>
         <body>
             <div id="svelte-app">{}</div>
             <script type="module" src="/client/main.js"></script>
         </body>
         </html>"#,
-        css, html
+        head, body
     );
     res.render(Text::Html(full_html));
 }
