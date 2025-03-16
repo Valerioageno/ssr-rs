@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vite build --config vite.config.ssr.js",
+    "build": "vite build --config vite.client.config.js && vite build --config vite.ssr.config.js",
     "preview": "vite preview"
   },
   "devDependencies": {
