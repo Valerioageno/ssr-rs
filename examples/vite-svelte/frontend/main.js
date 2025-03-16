@@ -1,8 +1,8 @@
-import App from './App.svelte';
+import { hydrate } from "svelte";
 
-const app = new App({
-  target: document.querySelector('#svelte-app'),
-  hydrate: true
+import App from "./App.svelte";
+import "./app.css";
+
+hydrate(App, {
+  target: document.querySelector("#svelte-app"),
 });
-
-export default app;
