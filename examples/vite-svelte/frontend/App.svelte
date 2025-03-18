@@ -4,6 +4,7 @@
   import Counter from './lib/Counter.svelte'
 </script>
 
+<svelte:head><title>Vite + Svelte + Rust SSR</title></svelte:head>
 <main>
   <div>
     <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
