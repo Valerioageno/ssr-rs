@@ -14,6 +14,7 @@ license-file = "./LICENSE_MIT"
 autoexamples = false
 include = [
     "src/*.rs",
+    "src/icudtl.dat",
     "Cargo.toml",
 ]
 

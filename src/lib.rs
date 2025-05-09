@@ -143,6 +143,7 @@
 //!        .body(result)
 //! }
 //!```
+mod icu;
 mod ssr;
 
 pub use ssr::{Ssr, SsrError};
