@@ -52,6 +52,8 @@ where
         let platform = v8::new_default_platform(0, false).make_shared();
         v8::V8::initialize_platform(platform);
         v8::V8::initialize();
+
+        v8::icu::set_common_data_74(crate::icu::ICU_DATA).expect("Failed to set ICU data");
     }
 
     /// It creates a new SSR instance (multiple instances are allowed).
