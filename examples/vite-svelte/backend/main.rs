@@ -10,7 +10,7 @@ thread_local! {
             read_to_string(Path::new("./dist/server/server.js").to_str().unwrap()).unwrap(),
             ""
         ).unwrap_or_else(|err| {
-            eprintln!("Failed to initialize SSR: {}", err);
+            eprintln!("Failed to initialize SSR: {err}");
             std::process::exit(1);
         })
     )
@@ -21,7 +21,7 @@ async fn index(res: &mut Response) {
     let result = SSR.with(|ssr| {
         let mut ssr = ssr.borrow_mut();
         ssr.render_to_string(None).unwrap_or_else(|err| {
-            eprintln!("Error rendering to string: {}", err);
+            eprintln!("Error rendering to string: {err}");
             String::new()
         })
     });
@@ -38,7 +38,7 @@ async fn index(res: &mut Response) {
     let result: serde_json::Value = match serde_json::from_str(&result) {
         Ok(val) => val,
         Err(err) => {
-            eprintln!("Failed to parse JSON: {}", err);
+            eprintln!("Failed to parse JSON: {err}");
             res.status_code(StatusCode::INTERNAL_SERVER_ERROR);
             res.render(Text::Plain("Internal Server Error"));
             return;
@@ -53,14 +53,13 @@ async fn index(res: &mut Response) {
         <html>
         <head>
             <link rel="stylesheet" href="/client/assets/main.css">
-            {}
+            {head}
         </head>
         <body>
-            <div id="svelte-app">{}</div>
+            <div id="svelte-app">{body}</div>
             <script type="module" src="/client/main.js"></script>
         </body>
-        </html>"#,
-        head, body
+        </html>"#
     );
     res.render(Text::Html(full_html));
 }
