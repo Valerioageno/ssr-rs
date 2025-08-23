@@ -1,3 +1,35 @@
+
+<div align="right">
+  <details>
+    <summary >🌐 Language</summary>
+    <div>
+      <div align="center">
+        <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=en">English</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=zh-CN">简体中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=zh-TW">繁體中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=ja">日本語</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=ko">한국어</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=hi">हिन्दी</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=th">ไทย</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=fr">Français</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=de">Deutsch</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=es">Español</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=it">Italiano</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=ru">Русский</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=pt">Português</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=nl">Nederlands</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=pl">Polski</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=ar">العربية</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=fa">فارسی</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=tr">Türkçe</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=vi">Tiếng Việt</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=id">Bahasa Indonesia</a>
+        | <a href="https://openaitx.github.io/view.html?user=Valerioageno&project=ssr-rs&lang=as">অসমীয়া</
+      </div>
+    </div>
+  </details>
+</div>
+
 # 🚀 Rust server side rendering
 
 [![API](https://docs.rs/ssr_rs/badge.svg)](https://docs.rs/ssr_rs)
