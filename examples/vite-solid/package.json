@@ -1,0 +1,28 @@
+{
+  "name": "vite-solid",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "//build": "vite build",
+    "//build:rust-ssr": "vite build --ssr src/server-entry.tsx",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "build": "vite build --config vite.client.config.js && vite build --config vite.ssr.config.js",
+    "preview": "cargo run"
+  },
+  "dependencies": {
+    "fast-text-encoding": "^1.0.6",
+    "solid-js": "^1.8.15"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@types/node": "^20.11.20",
+    "@typescript-eslint/eslint-plugin": "^7.0.2",
+    "@typescript-eslint/parser": "^7.0.2",
+    "eslint": "^8.56.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.1.4",
+    "vite-plugin-solid": "^2.10.1"
+  }
+}

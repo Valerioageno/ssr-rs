@@ -101,3 +101,7 @@ path = "examples/rspack-react/server.rs"
 [[example]]
 name="vite-svelte"
 path="examples/vite-svelte/backend/main.rs"
+
+[[example]]
+name="vite-solid"
+path="examples/vite-solid/server.rs"
