@@ -7,7 +7,7 @@
 //!
 //! ℹ️ **This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in SSR.**
 //!
-//! Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 5](https://svelte.dev/) - Check the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
+//! Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/), [Svelte 5](https://svelte.dev/) and [SolidJS](https://solidjs.com/) - Check the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
 //!
 //! > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the
 //! > benchmarks results.

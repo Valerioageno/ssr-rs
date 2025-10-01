@@ -9,7 +9,7 @@ It uses an embedded version of the [V8](https://v8.dev/) javascript engine (<a h
 > [!NOTE]
 >  This project is the backbone of [tuono](https://github.com/Valerioageno/tuono); a fullstack react framework with built in SSR.
 
-Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/) and [Svelte 5](https://svelte.dev/) - Check the `examples/` folder.
+Currently it works with [Vite](https://vitejs.dev/), [Webpack](https://webpack.js.org/), [Rspack](https://www.rspack.dev/), [React 18](https://react.dev/), [Svelte 5](https://svelte.dev/) and [SolidJS](https://solidjs.com/) - Check the `examples/` folder.
 
 > Check <a href="https://github.com/Valerioageno/ssr-rs/blob/main/benches">here</a> the benchmark results.
 
@@ -157,7 +157,7 @@ Any helps or suggestions will be appreciated.
 
 Known TODOs: 
 - Add examples with other rust backend frameworks
-- Add examples with other frontend frameworks (i.e. vue, quik, solid)
+- Add examples with other frontend frameworks (i.e. vue, quik)
 - Add benchmark setup to test against Deno and Bun
 - Explore support for V8 snapshots
 - Explore js copilation to WASM (i.e. [javy](https://github.com/bytecodealliance/javy))
