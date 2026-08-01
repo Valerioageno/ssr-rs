@@ -23,28 +23,35 @@ impl fmt::Display for SsrError {
     }
 }
 
-/// The name of the writer global injected into the JS runtime for streaming
-/// renders. A streaming entry point emits each chunk by calling
-/// `globalThis.__ssr_write(chunk)`.
-pub const STREAM_WRITE_FN: &str = "__ssr_write";
+/// Build a [`SsrError::JsException`] from a rejected promise's reason so callers
+/// see the actual JS error rather than an opaque message.
+fn rejection_error(scope: &mut v8::HandleScope, promise: v8::Local<v8::Promise>) -> SsrError {
+    let reason = promise
+        .result(scope)
+        .to_string(scope)
+        .map(|s| s.to_rust_string_lossy(scope))
+        .unwrap_or_else(|| "<unknown rejection reason>".to_string());
+    SsrError::JsException(reason)
+}
 
-/// An owned, `'static` chunk sink — the closure `render_to_stream` forwards each
+// --- Streaming support (opt-in via `Ssr::streaming`) -----------------------
+//
+// None of this is touched unless a caller opts into streaming; `render` /
+// `render_to_string` are unaffected.
+
+/// An owned, `'static` chunk sink — the closure a streaming render forwards each
 /// emitted chunk to.
 type ChunkSink = Box<dyn FnMut(String)>;
 
 thread_local! {
-    /// The active chunk sink for the current [`Ssr::render_to_stream`] call on
-    /// this thread. A V8 `FunctionCallback` is a bare `fn` (no captures), so
-    /// this thread-local is how the [`STREAM_WRITE_FN`] global reaches the
-    /// caller's closure. The closure is *owned* here (`'static`, boxed) — no
-    /// raw pointers or lifetime erasure — and installed/restored as a stack by
-    /// [`render_to_stream`](Ssr::render_to_stream), so nested renders on one
-    /// thread are handled correctly.
+    /// The sink for the streaming render active on this thread. A V8
+    /// `FunctionCallback` is a bare `fn` (no captures), so this thread-local is
+    /// how the writer global reaches the caller's closure. Installed and restored
+    /// as a stack by [`Streaming::render`], so nested renders behave correctly.
     static CHUNK_SINK: RefCell<Option<ChunkSink>> = const { RefCell::new(None) };
 }
 
-/// Restores the previous chunk sink when a `render_to_stream` call returns or
-/// unwinds, so nested streaming renders on one thread behave as a stack.
+/// Restores the previous sink when a streaming render returns or unwinds.
 struct SinkGuard {
     prev: Option<ChunkSink>,
 }
@@ -55,8 +62,15 @@ impl Drop for SinkGuard {
     }
 }
 
-/// The [`STREAM_WRITE_FN`] global injected during streaming renders: forwards
-/// each chunk the JS emits to the active sink.
+/// Install `on_chunk` as the active sink for the duration of a streaming render,
+/// restoring any previous sink on return (nested renders behave as a stack).
+fn install_sink(on_chunk: impl FnMut(String) + 'static) -> SinkGuard {
+    let prev = CHUNK_SINK.with(|cell| cell.borrow_mut().replace(Box::new(on_chunk)));
+    SinkGuard { prev }
+}
+
+/// The writer global (installed by [`Ssr::streaming`]) that a streaming bundle
+/// calls to emit chunks: forwards each to the active sink.
 fn stream_write_callback(
     scope: &mut v8::HandleScope,
     args: v8::FunctionCallbackArguments,
@@ -67,10 +81,9 @@ fn stream_write_callback(
     };
     let chunk = chunk.to_rust_string_lossy(scope);
 
-    // Take the sink out of the cell (releasing the borrow) before invoking it,
-    // so `on_chunk` — arbitrary user code — may itself start another streaming
-    // render on this thread without a `RefCell` double-borrow. Put it back
-    // afterwards unless a nested render installed a different one.
+    // Take the sink out (releasing the borrow) before invoking it, so the sink
+    // may itself drive another render on this thread without a double-borrow;
+    // put it back unless a nested render installed a different one.
     let Some(mut sink) = CHUNK_SINK.with(|cell| cell.borrow_mut().take()) else {
         return;
     };
@@ -83,15 +96,40 @@ fn stream_write_callback(
     });
 }
 
-/// Build a [`SsrError::JsException`] from a rejected promise's reason so callers
-/// see the actual JS error rather than an opaque message.
-fn rejection_error(scope: &mut v8::HandleScope, promise: v8::Local<v8::Promise>) -> SsrError {
-    let reason = promise
-        .result(scope)
-        .to_string(scope)
-        .map(|s| s.to_rust_string_lossy(scope))
-        .unwrap_or_else(|| "<unknown rejection reason>".to_string());
-    SsrError::JsException(reason)
+/// A streaming render session over an [`Ssr`] isolate, created by
+/// [`Ssr::streaming`]. Where [`Ssr::render`] buffers the whole result into one
+/// string, a streaming render invokes a caller sink for each chunk the bundle
+/// emits (via the writer global) as it is produced — e.g. to flush an HTML shell
+/// to the client before the rest of the page is ready.
+pub struct Streaming<'ssr, 's, 'i> {
+    ssr: &'ssr mut Ssr<'s, 'i>,
+}
+
+impl<'s, 'i> Streaming<'_, 's, 'i> {
+    /// Render the `entry` streaming export, invoking `on_chunk` for each chunk it
+    /// emits via the writer global (including across `await` points). Returns
+    /// once the render's promise resolves; a rejected promise (e.g. a shell
+    /// error before any chunk) is surfaced as [`SsrError::JsException`].
+    ///
+    /// `on_chunk` is owned and must be `'static`: it holds its own sink (a
+    /// channel, an `Rc`/`Arc`, a writer) rather than borrowing local state, since
+    /// the bare V8 callback bridge cannot safely reference borrowed data. Nested
+    /// streaming renders on one thread are supported (the sink is a stack).
+    ///
+    /// Note: like the other async-aware methods, completion is driven by pumping
+    /// V8 **microtasks**; JS that blocks on a *macrotask* (e.g. `setTimeout`)
+    /// will not progress.
+    pub fn render(
+        &mut self,
+        entry: &str,
+        params: Option<&str>,
+        on_chunk: impl FnMut(String) + 'static,
+    ) -> Result<(), SsrError> {
+        let _guard = install_sink(on_chunk);
+        // The streaming export emits chunks via the writer global and returns
+        // nothing; drive it with the plain `render` and discard the result.
+        self.ssr.render(entry, params).map(|_| ())
+    }
 }
 
 /// This struct holds all the necessary v8 utilities to
@@ -103,9 +141,10 @@ pub struct Ssr<'s, 'i> {
     handle_scope: *mut v8::HandleScope<'s, ()>,
     fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
     scope: *mut v8::ContextScope<'i, v8::HandleScope<'s>>,
-    /// Whether the [`STREAM_WRITE_FN`] global has been installed on this
-    /// isolate yet (lazily, on the first streaming render).
-    stream_write_registered: bool,
+    /// The writer global installed by [`Ssr::streaming`], if any — so repeated
+    /// `streaming` calls on this isolate don't re-allocate the V8 function.
+    /// `None` for isolates that never opt into streaming.
+    stream_writer: Option<&'static str>,
 }
 
 impl Drop for Ssr<'_, '_> {
@@ -224,7 +263,7 @@ where
             handle_scope,
             fn_map,
             scope: scope_ptr,
-            stream_write_registered: false,
+            stream_writer: None,
         })
     }
 
@@ -351,71 +390,27 @@ where
         Ok(result.to_rust_string_lossy(scope))
     }
 
-    /// Call a single exported function by name in **streaming** mode: each chunk
-    /// it emits by calling the injected [`STREAM_WRITE_FN`] (`__ssr_write`)
-    /// global is passed to `on_chunk` as it is produced (including across
-    /// `await` points), rather than buffered into one string. Returns once the
-    /// function's promise resolves; a rejected promise (e.g. a render shell
-    /// error) is an `Err`, so the caller can still decide the response status
-    /// before any chunk is sent.
+    /// Opt into streaming rendering. Installs `write_fn` (e.g. `"__ssr_write"`)
+    /// as the global a streaming bundle calls to emit each chunk, and returns a
+    /// [`Streaming`] handle to drive streaming renders. The buffered `render` /
+    /// `render_to_string` API is unaffected — nothing here is installed unless
+    /// you call this.
     ///
-    /// `on_chunk` is owned and must be `'static`, so it holds its own sink (a
-    /// channel, an `Rc`/`Arc`, a writer) rather than borrowing local state — the
-    /// bare V8 callback bridge cannot safely reference borrowed data. Nested
-    /// streaming renders on one thread are supported (the sink is saved and
-    /// restored as a stack).
-    ///
-    /// Note: like the other async-aware methods, completion is driven by pumping
-    /// V8 **microtasks**; JS that blocks on a *macrotask* (e.g. `setTimeout`)
-    /// will not progress.
-    pub fn render_to_stream(
-        &mut self,
-        entry: &str,
-        params: Option<&str>,
-        on_chunk: impl FnMut(String) + 'static,
-    ) -> Result<(), SsrError> {
-        if !self.stream_write_registered {
-            self.add_global_fn(STREAM_WRITE_FN, stream_write_callback)?;
-            self.stream_write_registered = true;
+    /// ```no_run
+    /// # use ssr_rs::Ssr;
+    /// # fn f(mut js: Ssr) -> Result<(), ssr_rs::SsrError> {
+    /// js.streaming("__ssr_write")?
+    ///     .render("renderStream", None, |chunk| print!("{chunk}"))?;
+    /// # Ok(()) }
+    /// ```
+    pub fn streaming(&mut self, write_fn: &'static str) -> Result<Streaming<'_, 's, 'i>, SsrError> {
+        // Install the writer global once per isolate — the global persists across
+        // renders, so repeated `streaming` calls need not re-allocate it.
+        if self.stream_writer != Some(write_fn) {
+            self.add_global_fn(write_fn, stream_write_callback)?;
+            self.stream_writer = Some(write_fn);
         }
-
-        // Install the (owned) sink for the duration of this call, saving any
-        // previous one so a nested streaming render restores it on return.
-        let prev = CHUNK_SINK.with(|cell| cell.borrow_mut().replace(Box::new(on_chunk)));
-        let _guard = SinkGuard { prev };
-
-        let scope = unsafe { &mut *self.scope };
-
-        let func = *self
-            .fn_map
-            .get(entry)
-            .ok_or(SsrError::InvalidFunctionName)?;
-
-        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
-            Some(s) => s.into(),
-            None => v8::undefined(scope).into(),
-        };
-        let undef = v8::undefined(scope).into();
-
-        let result = match func.call(scope, undef, &[params]) {
-            Some(val) => val,
-            None => return Err(SsrError::FailedJsExecution("Failed to call function")),
-        };
-
-        if result.is_promise() {
-            let promise = v8::Local::<v8::Promise>::try_from(result)
-                .map_err(|_| SsrError::FailedJsExecution("Failed to cast function to promise"))?;
-
-            while promise.state() == v8::PromiseState::Pending {
-                scope.perform_microtask_checkpoint();
-            }
-
-            if promise.state() == v8::PromiseState::Rejected {
-                return Err(rejection_error(scope, promise));
-            }
-        }
-
-        Ok(())
+        Ok(Streaming { ssr: self })
     }
 }
 
@@ -427,8 +422,8 @@ mod tests {
     use std::sync::Once;
 
     /// A `'static` chunk sink for streaming tests plus a handle to read what it
-    /// collected. `render_to_stream` owns its sink, so tests collect through a
-    /// shared `Rc<RefCell<..>>` rather than borrowing a local `Vec`.
+    /// collected (`Streaming::render` owns its sink, so tests collect through a
+    /// shared `Rc<RefCell<..>>` rather than borrowing a local `Vec`).
     fn collector() -> (Rc<RefCell<Vec<String>>>, impl FnMut(String) + 'static) {
         let chunks = Rc::new(RefCell::new(Vec::new()));
         let sink = {
@@ -683,7 +678,27 @@ mod tests {
     }
 
     #[test]
-    fn render_to_stream_emits_chunks_in_order_with_params() {
+    fn render_surfaces_a_rejected_promise() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderFn: async () => { throw new Error("boom"); } };"##.to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        // A rejected async render surfaces the JS error, not an opaque message.
+        match js.render("renderFn", None).unwrap_err() {
+            SsrError::JsException(reason) => assert!(
+                reason.contains("boom"),
+                "expected the JS error in the reason, got: {reason}"
+            ),
+            other => panic!("expected SsrError::JsException, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn streaming_emits_chunks_in_order_with_params() {
         init_test();
 
         let mut js = Ssr::from(
@@ -698,18 +713,20 @@ mod tests {
         .unwrap();
 
         let (chunks, sink) = collector();
-        js.render_to_stream("renderStreamFn", Some("BODY"), sink)
+        js.streaming("__ssr_write")
+            .unwrap()
+            .render("renderStreamFn", Some("BODY"), sink)
             .unwrap();
 
         assert_eq!(*chunks.borrow(), vec!["<html>", "BODY", "</html>"]);
     }
 
     #[test]
-    fn render_to_stream_captures_chunks_across_await_points() {
+    fn streaming_captures_chunks_across_await_points() {
         init_test();
 
         // Emitting before and after an `await` proves the microtask pump drives
-        // the callback progressively, not just at the end.
+        // the sink progressively, not just at the end.
         let mut js = Ssr::from(
             r##"var SSR = { renderStreamFn: async () => {
                 __ssr_write("a");
@@ -724,13 +741,16 @@ mod tests {
         .unwrap();
 
         let (chunks, sink) = collector();
-        js.render_to_stream("renderStreamFn", None, sink).unwrap();
+        js.streaming("__ssr_write")
+            .unwrap()
+            .render("renderStreamFn", None, sink)
+            .unwrap();
 
         assert_eq!(*chunks.borrow(), vec!["a", "b", "c"]);
     }
 
     #[test]
-    fn render_to_stream_surfaces_a_rejected_promise() {
+    fn streaming_surfaces_a_rejected_promise() {
         init_test();
 
         let mut js = Ssr::from(
@@ -744,7 +764,10 @@ mod tests {
         .unwrap();
 
         let (chunks, sink) = collector();
-        let result = js.render_to_stream("renderStreamFn", None, sink);
+        let result = js
+            .streaming("__ssr_write")
+            .unwrap()
+            .render("renderStreamFn", None, sink);
 
         // Chunks emitted before the rejection are still delivered...
         assert_eq!(*chunks.borrow(), vec!["partial"]);
@@ -759,11 +782,9 @@ mod tests {
     }
 
     #[test]
-    fn buffered_render_after_a_stream_render_does_not_leak_the_sink() {
+    fn buffered_render_after_streaming_is_unaffected() {
         init_test();
 
-        // The sink must be cleared after a streaming render so a later buffered
-        // render on the same isolate is unaffected.
         let mut js = Ssr::from(
             r##"var SSR = {
                 renderStreamFn: async () => { __ssr_write("streamed"); },
@@ -775,9 +796,14 @@ mod tests {
         .unwrap();
 
         let (chunks, sink) = collector();
-        js.render_to_stream("renderStreamFn", None, sink).unwrap();
+        js.streaming("__ssr_write")
+            .unwrap()
+            .render("renderStreamFn", None, sink)
+            .unwrap();
         assert_eq!(*chunks.borrow(), vec!["streamed"]);
 
+        // The sink is cleared after the streaming render, so a later buffered
+        // render on the same isolate is unaffected.
         assert_eq!(js.render("renderFn", None).unwrap(), "buffered");
     }
 }

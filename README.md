@@ -100,6 +100,65 @@ fn main() {
 }
 ```
 
+## Streaming
+
+`render` and `render_to_string` return the whole result at once. To **stream**
+output as it is produced (e.g. flushing an HTML shell to the client before the
+rest of the page is ready), opt in with [`Ssr::streaming`]. It installs a writer
+global that a streaming bundle calls to emit each chunk, and hands back a
+[`Streaming`] handle whose `render` invokes your sink for every chunk as the JS
+produces it. Buffered rendering is unaffected — nothing is installed unless you
+opt in.
+
+The JS entry point emits chunks by calling the writer global you name (here
+`__ssr_write`) and returns nothing:
+
+```javascript
+// bundle.js (IIFE, empty entryPoint)
+(() => ({
+  renderStream: async (props) => {
+    __ssr_write("<!doctype html><html><body>");
+    for (const row of await getRows(props)) {
+      __ssr_write(`<div>${row}</div>`); // flushed as it is produced
+    }
+    __ssr_write("</body></html>");
+  },
+}))()
+```
+
+On the Rust side, opt into streaming and forward each chunk to a sink of your
+choosing (a channel, a writer, an `Rc`/`Arc`, …):
+
+```rust
+use ssr_rs::Ssr;
+use std::fs::read_to_string;
+
+fn main() {
+    Ssr::create_platform();
+
+    let source = read_to_string("./path/to/build.js").unwrap();
+    let mut js = Ssr::from(source, "").unwrap();
+
+    // Opt into streaming: install the `__ssr_write` writer global, then drive
+    // the streaming export. The sink is called for every chunk as it is
+    // produced; a rejected promise is surfaced as `SsrError::JsException`.
+    js.streaming("__ssr_write")
+        .unwrap()
+        .render("renderStream", None, |chunk| print!("{chunk}"))
+        .unwrap();
+}
+```
+
+The sink is owned and must be `'static` (it holds its own destination rather than
+borrowing local state). Need the chunks back locally? Capture a channel or an
+`Rc<RefCell<_>>`.
+
+> Completion is driven by pumping V8 **microtasks**, so `async`/`await` works;
+> JS that blocks on a *macrotask* (e.g. `setTimeout`) will not progress.
+
+[`Ssr::streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Ssr.html#method.streaming
+[`Streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Streaming.html
+
 ## Example with actix-web
 
 > Examples with different web frameworks are available in the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
