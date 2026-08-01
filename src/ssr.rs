@@ -1,5 +1,6 @@
 #![allow(clippy::question_mark)]
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::fmt;
 
@@ -19,6 +20,49 @@ impl fmt::Display for SsrError {
     }
 }
 
+thread_local! {
+    /// Raw pointer to the active chunk sink for the current [`Ssr::render_to_stream`]
+    /// call on this thread. A V8 `FunctionCallback` is a bare `fn` (no captures),
+    /// so this thread-local is how the `__tuono_stream_write` global reaches the
+    /// caller's closure. Sound because an `Ssr` isolate is single-threaded and
+    /// renders one call at a time: the pointer is installed before the call and
+    /// cleared (by `SinkGuard`) before it returns, so it is only ever read while
+    /// valid.
+    static CHUNK_SINK: Cell<Option<*mut (dyn FnMut(String) + 'static)>> =
+        const { Cell::new(None) };
+}
+
+/// Clears the thread-local chunk sink when a `render_to_stream` call unwinds or
+/// returns, so a dangling pointer can never outlive the call.
+struct SinkGuard;
+
+impl Drop for SinkGuard {
+    fn drop(&mut self) {
+        CHUNK_SINK.with(|sink| sink.set(None));
+    }
+}
+
+/// The `__tuono_stream_write(chunk)` global injected during streaming renders:
+/// forwards each chunk the JS emits to the active sink.
+fn stream_write_callback(
+    scope: &mut v8::HandleScope,
+    args: v8::FunctionCallbackArguments,
+    _rv: v8::ReturnValue,
+) {
+    let Some(sink) = CHUNK_SINK.with(|sink| sink.get()) else {
+        return;
+    };
+    if let Some(chunk) = args.get(0).to_string(scope) {
+        let chunk = chunk.to_rust_string_lossy(scope);
+        // SAFETY: `sink` points at the `on_chunk` closure passed to the active
+        // `render_to_stream` call on this thread. That call is synchronous and
+        // installs/clears the pointer around itself (see `CHUNK_SINK`), so the
+        // closure outlives every callback invocation and access is exclusive
+        // (single-threaded, non-reentrant render).
+        unsafe { (*sink)(chunk) };
+    }
+}
+
 /// This struct holds all the necessary v8 utilities to
 /// execute Javascript code.
 /// It cannot be shared across threads.
@@ -28,6 +72,9 @@ pub struct Ssr<'s, 'i> {
     handle_scope: *mut v8::HandleScope<'s, ()>,
     fn_map: HashMap<String, v8::Local<'s, v8::Function>>,
     scope: *mut v8::ContextScope<'i, v8::HandleScope<'s>>,
+    /// Whether the `__tuono_stream_write` global has been installed on this
+    /// isolate yet (lazily, on the first streaming render).
+    stream_write_registered: bool,
 }
 
 impl Drop for Ssr<'_, '_> {
@@ -110,48 +157,34 @@ where
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope, Default::default()) {
-            fn_map = match Some(props)
-                .iter()
-                .enumerate()
-                .map(
-                    |(i, &p)| -> Result<(String, v8::Local<v8::Function>), SsrError> {
-                        let name = match p.get_index(scope, i as u32) {
-                            Some(val) => val,
-                            None => {
-                                return Err(SsrError::FailedToParseJs(
-                                    "Failed to get function name",
-                                ))
-                            }
-                        };
+            // Capture *every* function export (a bundle may expose several entry
+            // points, e.g. a buffered and a streaming renderer). Non-function
+            // properties (constants, etc.) are skipped.
+            for i in 0..props.length() {
+                let name = match props.get_index(scope, i) {
+                    Some(val) => val,
+                    None => return Err(SsrError::FailedToParseJs("Failed to get property name")),
+                };
 
-                        let mut scope = v8::EscapableHandleScope::new(scope);
+                let mut scope = v8::EscapableHandleScope::new(scope);
 
-                        let func = match object.get(&mut scope, name) {
-                            Some(val) => val,
-                            None => {
-                                return Err(SsrError::FailedToParseJs(
-                                    "Failed to get function from obj",
-                                ))
-                            }
-                        };
+                let value = match object.get(&mut scope, name) {
+                    Some(val) => val,
+                    None => {
+                        return Err(SsrError::FailedToParseJs("Failed to get property from obj"))
+                    }
+                };
 
-                        let fn_name = match name.to_string(&mut scope) {
-                            Some(val) => val.to_rust_string_lossy(&mut scope),
-                            None => {
-                                return Err(SsrError::FailedToParseJs(
-                                    "Failed to find function name",
-                                ))
-                            }
-                        };
+                if !value.is_function() {
+                    continue;
+                }
 
-                        Ok((fn_name, scope.escape(func.cast())))
-                    },
-                )
-                // TODO: collect directly the values into a map
-                .collect()
-            {
-                Ok(val) => val,
-                Err(err) => return Err(err),
+                let fn_name = match name.to_string(&mut scope) {
+                    Some(val) => val.to_rust_string_lossy(&mut scope),
+                    None => return Err(SsrError::FailedToParseJs("Failed to find function name")),
+                };
+
+                fn_map.insert(fn_name, scope.escape(value.cast()));
             }
         }
 
@@ -160,6 +193,7 @@ where
             handle_scope,
             fn_map,
             scope: scope_ptr,
+            stream_write_registered: false,
         })
     }
 
@@ -238,6 +272,112 @@ where
         }
 
         Ok(rendered)
+    }
+
+    /// Call a single exported function by name and return its result as a string
+    /// (awaiting it if it is async). Unlike [`Ssr::render_to_string`], which
+    /// iterates and concatenates every export, this targets one function — so a
+    /// bundle can expose several entry points (e.g. a buffered and a streaming
+    /// renderer) without them being called together.
+    pub fn render(&mut self, entry: &str, params: Option<&str>) -> Result<String, SsrError> {
+        let scope = unsafe { &mut *self.scope };
+
+        let func = *self
+            .fn_map
+            .get(entry)
+            .ok_or(SsrError::InvalidFunctionName)?;
+
+        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
+            Some(s) => s.into(),
+            None => v8::undefined(scope).into(),
+        };
+        let undef = v8::undefined(scope).into();
+
+        let mut result = match func.call(scope, undef, &[params]) {
+            Some(val) => val,
+            None => return Err(SsrError::FailedJsExecution("Failed to call function")),
+        };
+
+        if result.is_promise() {
+            let promise = v8::Local::<v8::Promise>::try_from(result)
+                .map_err(|_| SsrError::FailedJsExecution("Failed to cast function to promise"))?;
+
+            while promise.state() == v8::PromiseState::Pending {
+                scope.perform_microtask_checkpoint();
+            }
+
+            if promise.state() == v8::PromiseState::Rejected {
+                return Err(SsrError::FailedJsExecution("Render promise rejected"));
+            }
+
+            result = promise.result(scope);
+        }
+
+        let result = result
+            .to_string(scope)
+            .ok_or(SsrError::FailedJsExecution("Failed to parse the result to string"))?;
+
+        Ok(result.to_rust_string_lossy(scope))
+    }
+
+    /// Call a single exported function by name in **streaming** mode: each chunk
+    /// it emits by calling the injected `__tuono_stream_write(chunk)` global is
+    /// passed to `on_chunk` as it is produced (including across `await` points),
+    /// rather than buffered into one string. Returns once the function's promise
+    /// resolves; a rejected promise (e.g. a render shell error) is an `Err`, so
+    /// the caller can still decide the response status before any chunk is sent.
+    pub fn render_to_stream(
+        &mut self,
+        entry: &str,
+        params: Option<&str>,
+        on_chunk: &mut dyn FnMut(String),
+    ) -> Result<(), SsrError> {
+        if !self.stream_write_registered {
+            self.add_global_fn("__tuono_stream_write", stream_write_callback)?;
+            self.stream_write_registered = true;
+        }
+
+        // Install the sink for the duration of this call. The lifetime is erased
+        // because the thread-local can't be generic; it is sound because the
+        // pointer is only dereferenced by `stream_write_callback` during this
+        // synchronous call and cleared by `SinkGuard` before returning.
+        let sink: *mut (dyn FnMut(String) + '_) = on_chunk;
+        let sink: *mut (dyn FnMut(String) + 'static) = unsafe { std::mem::transmute(sink) };
+        CHUNK_SINK.with(|cell| cell.set(Some(sink)));
+        let _guard = SinkGuard;
+
+        let scope = unsafe { &mut *self.scope };
+
+        let func = *self
+            .fn_map
+            .get(entry)
+            .ok_or(SsrError::InvalidFunctionName)?;
+
+        let params: v8::Local<v8::Value> = match v8::String::new(scope, params.unwrap_or("")) {
+            Some(s) => s.into(),
+            None => v8::undefined(scope).into(),
+        };
+        let undef = v8::undefined(scope).into();
+
+        let result = match func.call(scope, undef, &[params]) {
+            Some(val) => val,
+            None => return Err(SsrError::FailedJsExecution("Failed to call function")),
+        };
+
+        if result.is_promise() {
+            let promise = v8::Local::<v8::Promise>::try_from(result)
+                .map_err(|_| SsrError::FailedJsExecution("Failed to cast function to promise"))?;
+
+            while promise.state() == v8::PromiseState::Pending {
+                scope.perform_microtask_checkpoint();
+            }
+
+            if promise.state() == v8::PromiseState::Rejected {
+                return Err(SsrError::FailedJsExecution("Render promise rejected"));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -455,5 +595,136 @@ mod tests {
             .expect("Failed to bind global_sum fn");
 
         assert_eq!(js.render_to_string(None).unwrap(), "7");
+    }
+
+    #[test]
+    fn render_targets_a_single_named_export() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderFn: () => "<html></html>", other: () => "SHOULD NOT APPEAR" };"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        // Only the requested export is called (not every property, unlike
+        // `render_to_string`).
+        assert_eq!(js.render("renderFn", None).unwrap(), "<html></html>");
+        assert_eq!(js.render("other", None).unwrap(), "SHOULD NOT APPEAR");
+    }
+
+    #[test]
+    fn render_errors_on_unknown_export() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderFn: () => "<html></html>" };"##.to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        assert_eq!(
+            js.render("missing", None).unwrap_err(),
+            SsrError::InvalidFunctionName
+        );
+    }
+
+    #[test]
+    fn render_to_stream_emits_chunks_in_order_with_params() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderStreamFn: async (params) => {
+                __tuono_stream_write("<html>");
+                __tuono_stream_write(params || "");
+                __tuono_stream_write("</html>");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut chunks: Vec<String> = Vec::new();
+        js.render_to_stream("renderStreamFn", Some("BODY"), &mut |chunk| {
+            chunks.push(chunk)
+        })
+        .unwrap();
+
+        assert_eq!(chunks, vec!["<html>", "BODY", "</html>"]);
+    }
+
+    #[test]
+    fn render_to_stream_captures_chunks_across_await_points() {
+        init_test();
+
+        // Emitting before and after an `await` proves the microtask pump drives
+        // the callback progressively, not just at the end.
+        let mut js = Ssr::from(
+            r##"var SSR = { renderStreamFn: async () => {
+                __tuono_stream_write("a");
+                await Promise.resolve();
+                __tuono_stream_write("b");
+                await Promise.resolve();
+                __tuono_stream_write("c");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut chunks: Vec<String> = Vec::new();
+        js.render_to_stream("renderStreamFn", None, &mut |chunk| chunks.push(chunk))
+            .unwrap();
+
+        assert_eq!(chunks, vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn render_to_stream_surfaces_a_rejected_promise() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderStreamFn: async () => {
+                __tuono_stream_write("partial");
+                throw new Error("boom");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut chunks: Vec<String> = Vec::new();
+        let result =
+            js.render_to_stream("renderStreamFn", None, &mut |chunk| chunks.push(chunk));
+
+        assert_eq!(
+            result.unwrap_err(),
+            SsrError::FailedJsExecution("Render promise rejected")
+        );
+    }
+
+    #[test]
+    fn buffered_render_after_a_stream_render_does_not_leak_the_sink() {
+        init_test();
+
+        // The sink must be cleared after a streaming render so a later buffered
+        // render on the same isolate is unaffected.
+        let mut js = Ssr::from(
+            r##"var SSR = {
+                renderStreamFn: async () => { __tuono_stream_write("streamed"); },
+                renderFn: () => "buffered",
+            };"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut chunks: Vec<String> = Vec::new();
+        js.render_to_stream("renderStreamFn", None, &mut |chunk| chunks.push(chunk))
+            .unwrap();
+        assert_eq!(chunks, vec!["streamed"]);
+
+        assert_eq!(js.render("renderFn", None).unwrap(), "buffered");
     }
 }
