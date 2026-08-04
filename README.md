@@ -100,6 +100,102 @@ fn main() {
 }
 ```
 
+## Streaming
+
+`render` and `render_to_string` return the whole result at once. To **stream**
+output as it is produced (e.g. flushing an HTML shell to the client before the
+rest of the page is ready), opt in with [`Ssr::streaming`]. It installs a writer
+global that a streaming bundle calls to emit each chunk, and hands back a
+[`Streaming`] handle whose `render` invokes your sink for every chunk as the JS
+produces it. Buffered rendering is unaffected — nothing is installed unless you
+opt in.
+
+The JS entry point emits chunks by calling the writer global you name (here
+`__ssr_write`) and returns nothing:
+
+```javascript
+// bundle.js (IIFE, empty entryPoint)
+(() => ({
+  renderStream: async (props) => {
+    __ssr_write("<!doctype html><html><body>");
+    for (const row of await getRows(props)) {
+      __ssr_write(`<div>${row}</div>`); // flushed as it is produced
+    }
+    __ssr_write("</body></html>");
+  },
+}))()
+```
+
+On the Rust side, opt into streaming and lend a **sink** to the render. A sink is
+anything implementing [`StreamSink`] — and a plain `FnMut(&str)` closure already
+does, via a blanket impl:
+
+```rust
+use ssr_rs::Ssr;
+use std::fs::read_to_string;
+
+fn main() {
+    Ssr::create_platform();
+
+    let source = read_to_string("./path/to/build.js").unwrap();
+    let mut js = Ssr::from(source, "").unwrap();
+
+    // Opt into streaming: install the `__ssr_write` writer global, then drive
+    // the streaming export. The sink is called for every chunk as it is
+    // produced; a rejected promise is surfaced as `SsrError::JsException`.
+    let mut sink = |chunk: &str| print!("{chunk}");
+    js.streaming("__ssr_write")
+        .unwrap()
+        .render("renderStream", None, &mut sink)
+        .unwrap();
+}
+```
+
+The sink is only **borrowed** for the duration of the render, so it need not be
+`'static` and can mutate local state directly — no channel or `Rc<RefCell<_>>`
+required. To collect the chunks locally, just push to a `Vec` on the stack:
+
+```rust
+# use ssr_rs::Ssr;
+# fn f(mut js: Ssr) {
+let mut chunks: Vec<String> = Vec::new();
+{
+    let mut sink = |chunk: &str| chunks.push(chunk.to_owned());
+    js.streaming("__ssr_write")
+        .unwrap()
+        .render("renderStream", None, &mut sink)
+        .unwrap();
+}
+// `sink` is dropped here, releasing its borrow of `chunks`.
+assert!(!chunks.is_empty());
+# }
+```
+
+For a reusable sink, implement [`StreamSink`] on your own type:
+
+```rust
+use ssr_rs::StreamSink;
+
+struct HtmlWriter { /* a socket, a buffer, … */ }
+
+impl StreamSink for HtmlWriter {
+    fn write_chunk(&mut self, chunk: &str) {
+        // forward `chunk` to your destination
+    }
+}
+```
+
+> Completion is driven by pumping V8 **microtasks**, so `async`/`await` works;
+> JS that blocks on a *macrotask* (e.g. `setTimeout`) will not progress.
+
+For an end-to-end HTTP example that streams chunks to the client as they are
+produced, see [`examples/axum_streaming.rs`](examples/axum_streaming.rs) (run it
+with `cargo run --example axum-streaming`).
+
+[`Ssr::streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Ssr.html#method.streaming
+[`Streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Streaming.html
+[`StreamSink`]: https://docs.rs/ssr_rs/latest/ssr_rs/trait.StreamSink.html
+
 ## Example with actix-web
 
 > Examples with different web frameworks are available in the <a href="https://github.com/Valerioageno/ssr-rs/blob/main/examples" target="_blank">examples</a> folder.
