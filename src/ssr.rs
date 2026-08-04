@@ -1,7 +1,7 @@
 #![allow(clippy::question_mark)]
-use std::cell::RefCell;
 // TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::fmt;
 
 /// This enum holds all the possible Ssr error states.
@@ -39,38 +39,43 @@ fn rejection_error(scope: &mut v8::HandleScope, promise: v8::Local<v8::Promise>)
 // None of this is touched unless a caller opts into streaming; `render` /
 // `render_to_string` are unaffected.
 
-/// An owned, `'static` chunk sink — the closure a streaming render forwards each
-/// emitted chunk to.
-type ChunkSink = Box<dyn FnMut(String)>;
-
-thread_local! {
-    /// The sink for the streaming render active on this thread. A V8
-    /// `FunctionCallback` is a bare `fn` (no captures), so this thread-local is
-    /// how the writer global reaches the caller's closure. Installed and restored
-    /// as a stack by [`Streaming::render`], so nested renders behave correctly.
-    static CHUNK_SINK: RefCell<Option<ChunkSink>> = const { RefCell::new(None) };
+/// A destination for the chunks a streaming render emits. Implement this on your
+/// writer and lend it to a render with [`Streaming::render`]; a plain
+/// `FnMut(&str)` closure also works via the blanket impl below. Nothing needs to
+/// be `'static` — the sink is only borrowed for the duration of the render.
+pub trait StreamSink {
+    /// Handle one chunk emitted by the bundle (via the writer global).
+    fn write_chunk(&mut self, chunk: &str);
 }
 
-/// Restores the previous sink when a streaming render returns or unwinds.
+impl<F: FnMut(&str)> StreamSink for F {
+    fn write_chunk(&mut self, chunk: &str) {
+        self(chunk)
+    }
+}
+
+/// Isolate data slot holding the `*mut &mut dyn StreamSink` that [`Streaming::render`]
+/// lends for the duration of a streaming render (null at all other times). This
+/// is how the bare V8 writer callback — which takes no captures — reaches the
+/// caller's borrowed sink without any thread-local or `'static` state.
+const SINK_SLOT: u32 = 0;
+
+/// Installs a borrowed sink pointer into the isolate's [`SINK_SLOT`] for the
+/// lifetime of a streaming render, restoring the previous value on return or
+/// unwind (so nested renders behave as a stack).
 struct SinkGuard {
-    prev: Option<ChunkSink>,
+    isolate: *mut v8::OwnedIsolate,
+    prev: *mut c_void,
 }
 
 impl Drop for SinkGuard {
     fn drop(&mut self) {
-        CHUNK_SINK.with(|sink| *sink.borrow_mut() = self.prev.take());
+        unsafe { (*self.isolate).set_data(SINK_SLOT, self.prev) };
     }
 }
 
-/// Install `on_chunk` as the active sink for the duration of a streaming render,
-/// restoring any previous sink on return (nested renders behave as a stack).
-fn install_sink(on_chunk: impl FnMut(String) + 'static) -> SinkGuard {
-    let prev = CHUNK_SINK.with(|cell| cell.borrow_mut().replace(Box::new(on_chunk)));
-    SinkGuard { prev }
-}
-
 /// The writer global (installed by [`Ssr::streaming`]) that a streaming bundle
-/// calls to emit chunks: forwards each to the active sink.
+/// calls to emit chunks: forwards each to the sink borrowed for this render.
 fn stream_write_callback(
     scope: &mut v8::HandleScope,
     args: v8::FunctionCallbackArguments,
@@ -81,19 +86,21 @@ fn stream_write_callback(
     };
     let chunk = chunk.to_rust_string_lossy(scope);
 
-    // Take the sink out (releasing the borrow) before invoking it, so the sink
-    // may itself drive another render on this thread without a double-borrow;
-    // put it back unless a nested render installed a different one.
-    let Some(mut sink) = CHUNK_SINK.with(|cell| cell.borrow_mut().take()) else {
+    // `HandleScope` derefs to `Isolate`, so read back the sink pointer lent by
+    // the in-flight `Streaming::render`. Null means no streaming render is
+    // active (e.g. the bundle called the writer outside a stream) — ignore it.
+    let ptr = scope.get_data(SINK_SLOT) as *mut &mut dyn StreamSink;
+    if ptr.is_null() {
         return;
-    };
-    sink(chunk);
-    CHUNK_SINK.with(|cell| {
-        let mut slot = cell.borrow_mut();
-        if slot.is_none() {
-            *slot = Some(sink);
-        }
-    });
+    }
+
+    // Safety: `Streaming::render` writes this slot with the address of a
+    // `&mut dyn StreamSink` it exclusively borrows for the whole render and
+    // clears before returning, so the pointer is live and unaliased here. A
+    // nested render installs its own slot value and restores ours, never
+    // touching this pointee.
+    let sink = unsafe { &mut *ptr };
+    sink.write_chunk(&chunk);
 }
 
 /// A streaming render session over an [`Ssr`] isolate, created by
@@ -106,15 +113,16 @@ pub struct Streaming<'ssr, 's, 'i> {
 }
 
 impl<'s, 'i> Streaming<'_, 's, 'i> {
-    /// Render the `entry` streaming export, invoking `on_chunk` for each chunk it
-    /// emits via the writer global (including across `await` points). Returns
-    /// once the render's promise resolves; a rejected promise (e.g. a shell
-    /// error before any chunk) is surfaced as [`SsrError::JsException`].
+    /// Render the `entry` streaming export, invoking `sink.write_chunk` for each
+    /// chunk it emits via the writer global (including across `await` points).
+    /// Returns once the render's promise resolves; a rejected promise (e.g. a
+    /// shell error before any chunk) is surfaced as [`SsrError::JsException`].
     ///
-    /// `on_chunk` is owned and must be `'static`: it holds its own sink (a
-    /// channel, an `Rc`/`Arc`, a writer) rather than borrowing local state, since
-    /// the bare V8 callback bridge cannot safely reference borrowed data. Nested
-    /// streaming renders on one thread are supported (the sink is a stack).
+    /// The caller instantiates `sink` (any [`StreamSink`] — including a plain
+    /// `FnMut(&str)` closure) and lends it to the render; it is only borrowed for
+    /// the duration of this call, so it can hold borrowed local state and need
+    /// not be `'static`. Nested streaming renders on one thread are supported
+    /// (the borrowed sink is installed as a stack).
     ///
     /// Note: like the other async-aware methods, completion is driven by pumping
     /// V8 **microtasks**; JS that blocks on a *macrotask* (e.g. `setTimeout`)
@@ -123,12 +131,35 @@ impl<'s, 'i> Streaming<'_, 's, 'i> {
         &mut self,
         entry: &str,
         params: Option<&str>,
-        on_chunk: impl FnMut(String) + 'static,
+        sink: &mut dyn StreamSink,
     ) -> Result<(), SsrError> {
-        let _guard = install_sink(on_chunk);
+        // Lend the sink to the writer callback for this render by stashing the
+        // address of the `&mut dyn StreamSink` (a fat pointer) in the isolate
+        // slot; the guard restores the previous occupant on return/unwind.
+        let mut sink: &mut dyn StreamSink = sink;
+        let slot = &mut sink as *mut &mut dyn StreamSink as *mut c_void;
+        let isolate = self.ssr.isolate;
+        let prev = unsafe { (*isolate).get_data(SINK_SLOT) };
+        unsafe { (*isolate).set_data(SINK_SLOT, slot) };
+        let _guard = SinkGuard { isolate, prev };
+
         // The streaming export emits chunks via the writer global and returns
         // nothing; drive it with the plain `render` and discard the result.
-        self.ssr.render(entry, params).map(|_| ())
+        let result = self.ssr.render(entry, params).map(|_| ());
+
+        // Anything that ran during the render (e.g. a nested render on another
+        // isolate) must leave our slot untouched, since every render restores
+        // its slot before returning - innermost first, so the value we set is
+        // the one still present here. If the slot no longer holds our pointer a
+        // guard failed to restore and the raw-pointer bridge is no longer sound
+        // - catch that in debug builds rather than read a stale pointer later.
+        debug_assert_eq!(
+            unsafe { (*isolate).get_data(SINK_SLOT) },
+            slot,
+            "streaming sink slot was not restored (innermost render first) during the render",
+        );
+
+        result
     }
 }
 
@@ -400,8 +431,9 @@ where
     /// ```no_run
     /// # use ssr_rs::Ssr;
     /// # fn f(mut js: Ssr) -> Result<(), ssr_rs::SsrError> {
-    /// js.streaming("__ssr_write")?
-    ///     .render("renderStream", None, |chunk| print!("{chunk}"))?;
+    ///     let mut sink = |chunk: &str| print!("{chunk}");
+    ///     js.streaming("__ssr_write")?
+    ///         .render("renderStream", None, &mut sink)?;
     /// # Ok(()) }
     /// ```
     pub fn streaming(&mut self, write_fn: &'static str) -> Result<Streaming<'_, 's, 'i>, SsrError> {
@@ -418,20 +450,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::RefCell;
-    use std::rc::Rc;
     use std::sync::Once;
 
-    /// A `'static` chunk sink for streaming tests plus a handle to read what it
-    /// collected (`Streaming::render` owns its sink, so tests collect through a
-    /// shared `Rc<RefCell<..>>` rather than borrowing a local `Vec`).
-    fn collector() -> (Rc<RefCell<Vec<String>>>, impl FnMut(String) + 'static) {
-        let chunks = Rc::new(RefCell::new(Vec::new()));
-        let sink = {
-            let chunks = Rc::clone(&chunks);
-            move |chunk: String| chunks.borrow_mut().push(chunk)
-        };
-        (chunks, sink)
+    /// A [`StreamSink`] that collects chunks into a `Vec` for assertions. Since
+    /// `Streaming::render` only borrows the sink, tests instantiate one locally
+    /// and read `chunks` back after the render returns — no `Rc<RefCell<..>>`.
+    #[derive(Default)]
+    struct Collector {
+        chunks: Vec<String>,
+    }
+
+    impl StreamSink for Collector {
+        fn write_chunk(&mut self, chunk: &str) {
+            self.chunks.push(chunk.to_string());
+        }
     }
 
     static INIT: Once = Once::new();
@@ -713,13 +745,13 @@ mod tests {
         )
         .unwrap();
 
-        let (chunks, sink) = collector();
+        let mut sink = Collector::default();
         js.streaming("__ssr_write")
             .unwrap()
-            .render("renderStreamFn", Some("BODY"), sink)
+            .render("renderStreamFn", Some("BODY"), &mut sink)
             .unwrap();
 
-        assert_eq!(*chunks.borrow(), vec!["<html>", "BODY", "</html>"]);
+        assert_eq!(sink.chunks, vec!["<html>", "BODY", "</html>"]);
     }
 
     #[test]
@@ -741,13 +773,13 @@ mod tests {
         )
         .unwrap();
 
-        let (chunks, sink) = collector();
+        let mut sink = Collector::default();
         js.streaming("__ssr_write")
             .unwrap()
-            .render("renderStreamFn", None, sink)
+            .render("renderStreamFn", None, &mut sink)
             .unwrap();
 
-        assert_eq!(*chunks.borrow(), vec!["a", "b", "c"]);
+        assert_eq!(sink.chunks, vec!["a", "b", "c"]);
     }
 
     #[test]
@@ -764,14 +796,14 @@ mod tests {
         )
         .unwrap();
 
-        let (chunks, sink) = collector();
+        let mut sink = Collector::default();
         let result = js
             .streaming("__ssr_write")
             .unwrap()
-            .render("renderStreamFn", None, sink);
+            .render("renderStreamFn", None, &mut sink);
 
         // Chunks emitted before the rejection are still delivered...
-        assert_eq!(*chunks.borrow(), vec!["partial"]);
+        assert_eq!(sink.chunks, vec!["partial"]);
         // ...and the rejection reason is surfaced, not swallowed.
         match result.unwrap_err() {
             SsrError::JsException(reason) => assert!(
@@ -796,15 +828,109 @@ mod tests {
         )
         .unwrap();
 
-        let (chunks, sink) = collector();
+        let mut sink = Collector::default();
         js.streaming("__ssr_write")
             .unwrap()
-            .render("renderStreamFn", None, sink)
+            .render("renderStreamFn", None, &mut sink)
             .unwrap();
-        assert_eq!(*chunks.borrow(), vec!["streamed"]);
+        assert_eq!(sink.chunks, vec!["streamed"]);
 
         // The sink is cleared after the streaming render, so a later buffered
         // render on the same isolate is unaffected.
         assert_eq!(js.render("renderFn", None).unwrap(), "buffered");
+    }
+
+    #[test]
+    fn streaming_sink_can_borrow_local_state() {
+        init_test();
+
+        let mut js = Ssr::from(
+            r##"var SSR = { renderStreamFn: async () => {
+                __ssr_write("x");
+                __ssr_write("y");
+                __ssr_write("z");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        // The whole point of lending the sink: it can mutate borrowed local
+        // state directly — no `Rc<RefCell<..>>`, no `'static`. A closure that
+        // captures two separate locals by `&mut` could not exist under the old
+        // owned-`'static` sink.
+        let mut count = 0usize;
+        let mut buf = String::new();
+        {
+            let mut sink = |chunk: &str| {
+                count += 1;
+                buf.push_str(chunk);
+            };
+            js.streaming("__ssr_write")
+                .unwrap()
+                .render("renderStreamFn", None, &mut sink)
+                .unwrap();
+        }
+
+        assert_eq!(count, 3);
+        assert_eq!(buf, "xyz");
+    }
+
+    #[test]
+    fn nested_streaming_across_isolates_preserves_each_sink() {
+        init_test();
+
+        // Outer isolate emits a marker mid-stream; the inner isolate is driven
+        // to completion from *inside* the outer sink, so both renders are live
+        // at once and each installs its own slot. This exercises the nested
+        // save/restore (innermost render restored first): after the nested
+        // render returns, the outer sink must still receive the trailing chunk.
+        let mut outer = Ssr::from(
+            r##"var SSR = { renderStreamFn: async () => {
+                __ssr_write("A1");
+                __ssr_write("<nested>");
+                __ssr_write("A2");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut inner = Ssr::from(
+            r##"var SSR = { renderStreamFn: async () => {
+                __ssr_write("B1");
+                __ssr_write("B2");
+            }};"##
+                .to_string(),
+            "SSR",
+        )
+        .unwrap();
+
+        let mut collected: Vec<String> = Vec::new();
+        {
+            let inner = &mut inner;
+            let mut sink = |chunk: &str| {
+                if chunk == "<nested>" {
+                    let mut nested = Collector::default();
+                    inner
+                        .streaming("__ssr_write")
+                        .unwrap()
+                        .render("renderStreamFn", None, &mut nested)
+                        .unwrap();
+                    collected.extend(nested.chunks);
+                } else {
+                    collected.push(chunk.to_string());
+                }
+            };
+            outer
+                .streaming("__ssr_write")
+                .unwrap()
+                .render("renderStreamFn", None, &mut sink)
+                .unwrap();
+        }
+
+        // "A2" arriving after the inner "B1"/"B2" proves the outer slot survived
+        // the nested render intact.
+        assert_eq!(collected, vec!["A1", "B1", "B2", "A2"]);
     }
 }

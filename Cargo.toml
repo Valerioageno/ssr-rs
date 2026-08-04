@@ -42,6 +42,7 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Axum
 axum = "0.7.4"
+tokio-stream = "0.1"
 
 # Rocket dependencies
 rocket = "0.5.0-rc.2"
@@ -81,6 +82,10 @@ path = "examples/run.rs"
 [[example]]
 name = "axum"
 path = "examples/axum.rs"
+
+[[example]]
+name = "axum-streaming"
+path = "examples/axum_streaming.rs"
 
 [[example]]
 name = "multi"

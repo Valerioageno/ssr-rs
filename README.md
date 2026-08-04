@@ -126,8 +126,9 @@ The JS entry point emits chunks by calling the writer global you name (here
 }))()
 ```
 
-On the Rust side, opt into streaming and forward each chunk to a sink of your
-choosing (a channel, a writer, an `Rc`/`Arc`, …):
+On the Rust side, opt into streaming and lend a **sink** to the render. A sink is
+anything implementing [`StreamSink`] — and a plain `FnMut(&str)` closure already
+does, via a blanket impl:
 
 ```rust
 use ssr_rs::Ssr;
@@ -142,22 +143,58 @@ fn main() {
     // Opt into streaming: install the `__ssr_write` writer global, then drive
     // the streaming export. The sink is called for every chunk as it is
     // produced; a rejected promise is surfaced as `SsrError::JsException`.
+    let mut sink = |chunk: &str| print!("{chunk}");
     js.streaming("__ssr_write")
         .unwrap()
-        .render("renderStream", None, |chunk| print!("{chunk}"))
+        .render("renderStream", None, &mut sink)
         .unwrap();
 }
 ```
 
-The sink is owned and must be `'static` (it holds its own destination rather than
-borrowing local state). Need the chunks back locally? Capture a channel or an
-`Rc<RefCell<_>>`.
+The sink is only **borrowed** for the duration of the render, so it need not be
+`'static` and can mutate local state directly — no channel or `Rc<RefCell<_>>`
+required. To collect the chunks locally, just push to a `Vec` on the stack:
+
+```rust
+# use ssr_rs::Ssr;
+# fn f(mut js: Ssr) {
+let mut chunks: Vec<String> = Vec::new();
+{
+    let mut sink = |chunk: &str| chunks.push(chunk.to_owned());
+    js.streaming("__ssr_write")
+        .unwrap()
+        .render("renderStream", None, &mut sink)
+        .unwrap();
+}
+// `sink` is dropped here, releasing its borrow of `chunks`.
+assert!(!chunks.is_empty());
+# }
+```
+
+For a reusable sink, implement [`StreamSink`] on your own type:
+
+```rust
+use ssr_rs::StreamSink;
+
+struct HtmlWriter { /* a socket, a buffer, … */ }
+
+impl StreamSink for HtmlWriter {
+    fn write_chunk(&mut self, chunk: &str) {
+        // forward `chunk` to your destination
+    }
+}
+```
 
 > Completion is driven by pumping V8 **microtasks**, so `async`/`await` works;
 > JS that blocks on a *macrotask* (e.g. `setTimeout`) will not progress.
 
+For an end-to-end HTTP example that streams chunks to the client as they are
+produced, see [`examples/axum_streaming.rs`](examples/axum_streaming.rs) (run it
+with `cargo run --example axum-streaming`).
+
 [`Ssr::streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Ssr.html#method.streaming
 [`Streaming`]: https://docs.rs/ssr_rs/latest/ssr_rs/struct.Streaming.html
+[`StreamSink`]: https://docs.rs/ssr_rs/latest/ssr_rs/trait.StreamSink.html
 
 ## Example with actix-web
 
