@@ -1,6 +1,6 @@
 #![allow(clippy::question_mark)]
-// TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::cell::RefCell;
+// TODO: replace hashmap with more performant https://nnethercote.github.io/perf-book/hashing.html
 use std::collections::HashMap;
 use std::fmt;
 
@@ -34,7 +34,7 @@ fn rejection_error(scope: &mut v8::HandleScope, promise: v8::Local<v8::Promise>)
     SsrError::JsException(reason)
 }
 
-// --- Streaming support (opt-in via `Ssr::streaming`) -----------------------
+// Streaming support
 //
 // None of this is touched unless a caller opts into streaming; `render` /
 // `render_to_string` are unaffected.
@@ -227,9 +227,10 @@ where
         let mut fn_map: HashMap<String, v8::Local<v8::Function>> = HashMap::new();
 
         if let Some(props) = object.get_own_property_names(scope, Default::default()) {
-            // Capture *every* function export (a bundle may expose several entry
-            // points, e.g. a buffered and a streaming renderer). Non-function
-            // properties (constants, etc.) are skipped.
+            // Replaces a `Some(props).iter()...collect()` that iterated the
+            // `Option`, not the array, so it only ever registered the first
+            // property - fine when there's one export, wrong once `render` looks
+            // up entry points by name.
             for i in 0..props.length() {
                 let name = match props.get_index(scope, i) {
                     Some(val) => val,
